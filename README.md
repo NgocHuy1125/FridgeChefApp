@@ -1,3 +1,2 @@
-# fridge_chef_app
-
-A new Flutter project.
+# FridgeChefApp
+A mobile app that suggests recipes based on ingredients you have.
