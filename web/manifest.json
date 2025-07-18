@@ -1,6 +1,6 @@
 {
-    "name": "fridge_chef_app",
-    "short_name": "fridge_chef_app",
+    "name": "app_goi_y_mon_an",
+    "short_name": "app_goi_y_mon_an",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,20 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:app_goi_y_mon_an/screens/home_screen.dart'; // Đảm bảo đường dẫn đúng
+import 'package:flutter_localizations/flutter_localizations.dart'; // <-- THÊM IMPORT NÀY
 
 void main() {
-  runApp(const MainApp());
+  runApp(const MyApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
+    return MaterialApp(
+      title: 'Ứng dụng Nấu Ăn',
+      theme: ThemeData(
+        primarySwatch: Colors.orange,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.deepOrange,
+          foregroundColor: Colors.white,
         ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: Colors.deepOrange,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.deepOrange,
+            foregroundColor: Colors.white,
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          selectedColor: Colors.amber.shade700,
+          backgroundColor: Colors.grey.shade200,
+          labelStyle: const TextStyle(color: Colors.black87),
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          selectedItemColor: Colors.deepOrange,
+          unselectedItemColor: Colors.grey,
+        ),
+        useMaterial3: true,
       ),
+      home: const HomeScreen(),
+      // --- THÊM CÁC DÒNG SAU ĐÂY ĐỂ HỖ TRỢ ĐA NGÔN NGỮ/NHẬP LIỆU PHỨC TẠP ---
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''), // English
+        Locale('vi', ''), // Vietnamese
+      ],
+      locale: const Locale('vi', ''), // Đặt mặc định là tiếng Việt
+      // -------------------------------------------------------------------
     );
   }
 }
