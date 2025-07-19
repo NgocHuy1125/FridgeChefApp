@@ -1,12 +1,14 @@
+// lib/models/recipe.dart
 class Recipe {
-  String? id; // Primary Key
-  String name;
-  String description;
-  String instructions;
-  String? imageUrl; // image_url
-  int cookingTimeMinutes; // cooking_time_minutes
-  String difficulty; // difficulty
-  DateTime? createdAt; // created_at
+  final String? id;
+  final String name;
+  final String description;
+  final String instructions;
+  final String? imageUrl;
+  final int cookingTimeMinutes;
+  final String difficulty;
+  final DateTime? createdAt;
+  final List<String>? requiredIngredientIds; // <-- THÊM DÒNG NÀY
 
   Recipe({
     this.id,
@@ -17,6 +19,7 @@ class Recipe {
     required this.cookingTimeMinutes,
     required this.difficulty,
     this.createdAt,
+    this.requiredIngredientIds, // <-- THÊM DÒNG NÀY
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +32,7 @@ class Recipe {
       'cooking_time_minutes': cookingTimeMinutes,
       'difficulty': difficulty,
       'created_at': createdAt?.toIso8601String(),
+      'required_ingredient_ids': requiredIngredientIds?.join(','), // Chuyển List<String> thành String
     };
   }
 
@@ -42,6 +46,9 @@ class Recipe {
       cookingTimeMinutes: map['cooking_time_minutes'],
       difficulty: map['difficulty'],
       createdAt: map['created_at'] != null ? DateTime.parse(map['created_at']) : null,
+      requiredIngredientIds: map['required_ingredient_ids'] != null
+          ? (map['required_ingredient_ids'] as String).split(',') // Chuyển String thành List<String>
+          : null,
     );
   }
 }

@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:app_goi_y_mon_an/models/recipe.dart';
-import 'package:app_goi_y_mon_an/utils/mock_data.dart'; // Import mock data
+import 'package:app_goi_y_mon_an/utils/mock_data.dart';
 import 'package:app_goi_y_mon_an/screens/home_screen.dart'; // Để điều hướng về HomeScreen
-import 'package:app_goi_y_mon_an/screens/recipes_screen.dart'; // Để điều hướng đến RecipesScreen
+import 'package:app_goi_y_mon_an/screens/favorites_screen.dart'; // Để điều hướng đến FavoritesScreen
 
-class FavoritesScreen extends StatefulWidget {
-  const FavoritesScreen({super.key});
+class RecipesScreen extends StatefulWidget {
+  final List<String> selectedIngredientIds; // Danh sách ID nguyên liệu đã chọn
+
+  const RecipesScreen({super.key, required this.selectedIngredientIds});
 
   @override
-  State<FavoritesScreen> createState() => _FavoritesScreenState();
+  State<RecipesScreen> createState() => _RecipesScreenState();
 }
 
-class _FavoritesScreenState extends State<FavoritesScreen> {
-  List<Recipe> _favoritedRecipes = [];
-  Set<String> _favoritedRecipeIds = {};
+class _RecipesScreenState extends State<RecipesScreen> {
+  List<Recipe> _filteredRecipes = [];
+  Set<String> _favoritedRecipeIds = {}; // Để kiểm tra trạng thái yêu thích
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadFavoritesData();
+    _loadRecipes();
   }
 
   // Sử dụng didChangeDependencies để cập nhật nếu mockFavoritedRecipeIds thay đổi
@@ -27,25 +29,43 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Cập nhật trạng thái yêu thích từ mock data mỗi khi widget được rebuild/route thay đổi
-    _loadFavoritesData();
+    setState(() {
+      _favoritedRecipeIds = mockFavoritedRecipeIds.toSet();
+    });
   }
 
-  void _loadFavoritesData() {
-    // Lấy tất cả công thức và lọc ra những món đã được yêu thích
-    final allRecipes = mockRecipes;
-    _favoritedRecipeIds = mockFavoritedRecipeIds.toSet(); // Cập nhật từ mock data chung
+  void _loadRecipes() {
+    // Trong thực tế, bạn sẽ gọi API ở đây:
+    // final fetchedRecipes = await YourApiService().getRecipesByIngredients(widget.selectedIngredientIds);
 
-    List<Recipe> currentFavorited = [];
-    for (var recipe in allRecipes) {
-      if (_favoritedRecipeIds.contains(recipe.id)) {
-        currentFavorited.add(recipe);
+    // Dùng dữ liệu giả lập cho mục đích hiển thị UI
+    List<Recipe> recipes = [];
+
+    if (widget.selectedIngredientIds.isEmpty) {
+      // Nếu không có nguyên liệu nào được chọn, hiển thị tất cả công thức
+      recipes = List.from(mockRecipes);
+    } else {
+      // Lọc các công thức dựa trên nguyên liệu đã chọn
+      // Một công thức được coi là phù hợp nếu ít nhất một trong các nguyên liệu yêu cầu
+      // của nó có trong danh sách nguyên liệu đã chọn của người dùng.
+      // Bạn có thể tùy chỉnh logic lọc ở đây (ví dụ: cần N% nguyên liệu, hoặc tất cả nguyên liệu chính).
+      for (var recipe in mockRecipes) {
+        if (recipe.requiredIngredientIds != null && recipe.requiredIngredientIds!.isNotEmpty) {
+          bool hasMatchingIngredient = recipe.requiredIngredientIds!
+              .any((requiredId) => widget.selectedIngredientIds.contains(requiredId));
+          if (hasMatchingIngredient) {
+            recipes.add(recipe);
+          }
+        }
       }
     }
-    // Sắp xếp các món yêu thích theo thời gian tạo (mới nhất lên đầu)
-    currentFavorited.sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
+
+    // Sắp xếp các công thức (ví dụ: theo thời gian tạo, mới nhất lên đầu)
+    recipes.sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
 
     setState(() {
-      _favoritedRecipes = currentFavorited;
+      _filteredRecipes = recipes;
+      _favoritedRecipeIds = mockFavoritedRecipeIds.toSet(); // Đảm bảo cập nhật trạng thái yêu thích
       _isLoading = false;
     });
   }
@@ -76,9 +96,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         );
       }
     });
-    // Gọi lại _loadFavoritesData để cập nhật UI sau khi thay đổi
-    _loadFavoritesData();
     // Trong thực tế, bạn sẽ gọi API để cập nhật trạng thái yêu thích trên backend
+    // await YourApiService().toggleFavorite(userId, recipe.id, _favoritedRecipeIds.contains(recipe.id));
   }
 
   @override
@@ -98,14 +117,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Yêu thích',
+              'Thực đơn phù hợp', // Tên màn hình mới
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
             ),
             Text(
-              'Bạn có ${_favoritedRecipes.length} món yêu thích',
+              'Tìm thấy ${_filteredRecipes.length} công thức',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white70,
                   ),
@@ -118,25 +137,30 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {},
+            icon: const Icon(Icons.favorite_border, color: Colors.white),
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+              );
+            },
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _favoritedRecipes.isEmpty
+          : _filteredRecipes.isEmpty
               ? Center(
                   child: Text(
-                    'Bạn chưa có món ăn yêu thích nào.',
+                    'Không tìm thấy công thức phù hợp với nguyên liệu của bạn.',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey),
+                    textAlign: TextAlign.center,
                   ),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16.0),
-                  itemCount: _favoritedRecipes.length,
+                  itemCount: _filteredRecipes.length,
                   itemBuilder: (context, index) {
-                    final recipe = _favoritedRecipes[index];
+                    final recipe = _filteredRecipes[index];
                     final isFavorited = _favoritedRecipeIds.contains(recipe.id);
 
                     return Card(
@@ -150,6 +174,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Hình ảnh món ăn
                             Container(
                               width: MediaQuery.of(context).size.width * 0.25,
                               height: MediaQuery.of(context).size.width * 0.25 * 0.75,
@@ -162,6 +187,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               ),
                             ),
                             const SizedBox(width: 12.0),
+                            // Thông tin món ăn
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,6 +231,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                 ],
                               ),
                             ),
+                            // Nút tim
                             Align(
                               alignment: Alignment.topRight,
                               child: IconButton(
@@ -241,23 +268,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             label: 'Mua sắm',
           ),
         ],
-        currentIndex: 2, // Đặt mục "Yêu thích" là được chọn
+        currentIndex: 1, // Đặt mục "Thực đơn" là được chọn
         onTap: (index) {
           if (index == 0) { // Quay về màn hình Tủ bếp
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
-          } else if (index == 1) { // Đến màn hình Thực đơn
-            // Khi quay lại Thực đơn, không có nguyên liệu được chọn trước đó
-            // Bạn có thể lưu trữ trạng thái selectedIngredientIds hoặc yêu cầu user chọn lại
-            // Để đơn giản, ở đây sẽ truyền một danh sách rỗng (hiển thị tất cả)
-            // Hoặc có thể truyền danh sách nguyên liệu mặc định/từ tủ bếp của user
+          } else if (index == 2) { // Đến màn hình Yêu thích
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => RecipesScreen(
-                selectedIngredientIds: [], // Tùy chọn: truyền danh sách rỗng hoặc logic khác
-              )),
+              MaterialPageRoute(builder: (context) => const FavoritesScreen()),
             );
           }
+          // Các tab khác không xử lý điều hướng nếu không có màn hình tương ứng
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -293,7 +315,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Nút này có thể không cần thiết trên màn hình yêu thích, hoặc có chức năng khác
+                    // Nút "Xem công thức" trên màn hình này có thể không cần thiết,
+                    // hoặc có thể làm một chức năng khác (ví dụ: làm mới tìm kiếm)
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.lightGreen,
@@ -304,7 +327,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Xem công thức', // Giữ nguyên tên để đồng bộ với Homescreen nếu muốn
+                    'Tìm lại', // Đổi tên nút cho phù hợp với context
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

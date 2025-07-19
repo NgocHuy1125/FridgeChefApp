@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:app_goi_y_mon_an/models/ingredient.dart';
-import 'package:app_goi_y_mon_an/models/user_profile.dart';
-import 'package:app_goi_y_mon_an/models/user_ingredient.dart';
-import 'package:app_goi_y_mon_an/database/database_helper.dart';
+import 'package:app_goi_y_mon_an/screens/favorites_screen.dart'; // Import màn hình yêu thích
+import 'package:app_goi_y_mon_an/screens/recipes_screen.dart'; // <-- Import màn hình công thức mới
+import 'package:app_goi_y_mon_an/utils/mock_data.dart'; // Import mock data
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,15 +12,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-  String _currentUserId = 'mock_user_123';
   Map<String, List<Ingredient>> _categorizedIngredients = {};
-  Set<String> _userIngredientIds = {};
+  Set<String> _userIngredientIds = {}; // Set chứa ID của các nguyên liệu đã chọn
   int _pantryEssentialsTotalCount = 0;
   bool _isLoading = true;
   Set<String> _expandedCategories = {};
 
-  final TextEditingController _searchController = TextEditingController(); // Controller cho thanh tìm kiếm
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -30,30 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose(); // Giải phóng controller khi widget bị dispose
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _initializeAppData() async {
-    // Đảm bảo có một UserProfile giả lập
-    UserProfile? existingUser = await _dbHelper.getUserProfileById(_currentUserId);
-    if (existingUser == null) {
-      await _dbHelper.insertUserProfile(
-        UserProfile(
-          id: _currentUserId,
-          username: 'Người dùng giả lập', // Việt hóa
-          email: 'mock@example.com',
-          avatarUrl: 'https://via.placeholder.com/150',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
-    }
-
-    // Thêm dữ liệu mẫu nguyên liệu vào DB nếu chưa có
-    await _dbHelper.initializeIngredients();
-
-    // Tải các nguyên liệu và trạng thái của người dùng TỪ DATABASE
     await _loadIngredients();
 
     setState(() {
@@ -62,13 +41,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadIngredients() async {
-    final allIngredientsFromDb = await _dbHelper.getIngredients();
-    final userAddedIngredientsFromDb = await _dbHelper.getUserIngredients(_currentUserId);
+    final allIngredientsFromMock = sampleIngredients;
 
-    // Nhóm nguyên liệu theo category
+    // Giả lập một số nguyên liệu người dùng đã chọn ban đầu
+    // Có thể lưu trạng thái này vào SharedPreferences hoặc một Store nào đó nếu cần persistent
+    _userIngredientIds = {'ing_1', 'ing_4', 'ing_7'}.toSet(); // Ví dụ: Cà rốt, Tỏi, Thịt gà
+
     Map<String, List<Ingredient>> categorized = {};
-    for (var ingredient in allIngredientsFromDb) {
-      final category = ingredient.category ?? 'Chưa phân loại'; // Việt hóa
+    for (var ingredient in allIngredientsFromMock) {
+      final category = ingredient.category ?? 'Chưa phân loại';
       if (!categorized.containsKey(category)) {
         categorized[category] = [];
       }
@@ -77,27 +58,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _categorizedIngredients = categorized;
-      _userIngredientIds = userAddedIngredientsFromDb.map((ui) => ui.ingredientId!).toSet();
       _pantryEssentialsTotalCount = _userIngredientIds.length;
-      _expandedCategories = categorized.keys.toSet(); // Mở rộng tất cả ban đầu
+      _expandedCategories = categorized.keys.toSet();
     });
   }
 
-  Future<void> _toggleIngredientInPantry(Ingredient ingredient) async {
+  void _toggleIngredientInPantry(Ingredient ingredient) {
     if (ingredient.id == null) return;
 
-    if (_userIngredientIds.contains(ingredient.id)) {
-      await _dbHelper.deleteUserIngredient(_currentUserId, ingredient.id!);
-    } else {
-      await _dbHelper.insertUserIngredient(
-        UserIngredient(
-          userId: _currentUserId,
-          ingredientId: ingredient.id!,
-          addedAt: DateTime.now(),
-        ),
-      );
-    }
-    _loadIngredients(); // Tải lại dữ liệu để cập nhật UI
+    setState(() {
+      if (_userIngredientIds.contains(ingredient.id)) {
+        _userIngredientIds.remove(ingredient.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã xóa "${ingredient.name}" khỏi tủ bếp!'),
+            duration: const Duration(seconds: 1),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        _userIngredientIds.add(ingredient.id!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã thêm "${ingredient.name}" vào tủ bếp!'),
+            duration: const Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      _pantryEssentialsTotalCount = _userIngredientIds.length;
+    });
   }
 
   void _toggleCategoryExpansion(String category) {
@@ -110,38 +100,26 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Hàm xử lý khi người dùng nhập tìm kiếm và nhấn Enter
-  void _handleSearchSubmit(String searchText) async {
+  void _handleSearchSubmit(String searchText) {
     if (searchText.isEmpty) return;
 
     final normalizedSearchText = searchText.trim().toLowerCase();
-    // Tìm kiếm nguyên liệu trong danh sách _allIngredients
     final foundIngredient = _categorizedIngredients.values
-        .expand((list) => list) // Làm phẳng map thành một list duy nhất
+        .expand((list) => list)
         .firstWhere(
           (ingredient) => ingredient.name.toLowerCase() == normalizedSearchText,
-          orElse: () => Ingredient(name: ''), // Trả về Ingredient rỗng nếu không tìm thấy
+          orElse: () => Ingredient(name: ''),
         );
 
-    if (foundIngredient.name.isNotEmpty) { // Nếu tìm thấy nguyên liệu
-      await _toggleIngredientInPantry(foundIngredient);
-      _searchController.clear(); // Xóa văn bản sau khi xử lý
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_userIngredientIds.contains(foundIngredient.id)
-              ? 'Đã xóa "${foundIngredient.name}" khỏi tủ bếp!'
-              : 'Đã thêm "${foundIngredient.name}" vào tủ bếp!'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.green, // Màu xanh cho thông báo thành công
-        ),
-      );
+    if (foundIngredient.name.isNotEmpty) {
+      _toggleIngredientInPantry(foundIngredient);
+      _searchController.clear();
     } else {
-      // Không tìm thấy nguyên liệu
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Không tìm thấy nguyên liệu: "$searchText"'),
           duration: const Duration(seconds: 2),
-          backgroundColor: Colors.red, // Màu đỏ cho thông báo lỗi
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -164,14 +142,14 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Tủ bếp', // Việt hóa
+              'Tủ bếp',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
             ),
             Text(
-              'Bạn có $_pantryEssentialsTotalCount Nguyên liệu', // Việt hóa
+              'Bạn có $_pantryEssentialsTotalCount Nguyên liệu',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white70,
                   ),
@@ -185,7 +163,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.favorite_border, color: Colors.white),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+              );
+            },
           ),
         ],
       ),
@@ -195,7 +177,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Phần tìm kiếm
                   Container(
                     color: Colors.deepOrange,
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
@@ -206,32 +187,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(10.0),
                       ),
                       child: TextField(
-                        controller: _searchController, // Gán controller
-                        onSubmitted: _handleSearchSubmit, // Xử lý khi nhấn Enter
+                        controller: _searchController,
+                        onSubmitted: _handleSearchSubmit,
                         decoration: const InputDecoration(
-                          hintText: 'Thêm/xóa/dán nguyên liệu', // Việt hóa
+                          hintText: 'Thêm/xóa/dán nguyên liệu',
                           border: InputBorder.none,
                           prefixIcon: Icon(Icons.search, color: Colors.grey),
-                          // Không có suffixIcon cho mic
                         ),
                       ),
                     ),
                   ),
-
-                  // Phần Pantry Essentials - Chia theo loại
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Nguyên liệu cần thiết', // Việt hóa
+                          'Nguyên liệu cần thiết',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
                         const SizedBox(height: 10),
-                        // Duyệt qua từng danh mục nguyên liệu
                         ..._categorizedIngredients.keys.map((category) {
                           final ingredientsInCategory = _categorizedIngredients[category]!;
                           final isExpanded = _expandedCategories.contains(category);
@@ -317,24 +294,34 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.kitchen),
-            label: 'Tủ bếp', // Việt hóa
+            label: 'Tủ bếp',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_menu),
-            label: 'Thực đơn', // Việt hóa
+            label: 'Thực đơn',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite),
-            label: 'Yêu thích', // Việt hóa
+            label: 'Yêu thích',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_cart),
-            label: 'Mua sắm', // Việt hóa
+            label: 'Mua sắm',
           ),
         ],
         currentIndex: 0,
         onTap: (index) {
-          // Xử lý chuyển tab ở đây
+          if (index == 2) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+            );
+          } else if (index == 1) { // <-- Điều hướng đến màn hình Thực đơn
+             Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => RecipesScreen(
+                selectedIngredientIds: _userIngredientIds.toList(),
+              )),
+            );
+          }
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -348,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Xử lý khi nhấn "Tủ bếp của tôi"
+                    // Chuyển đến màn hình Tủ bếp của tôi nếu có (hoặc tự xử lý)
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade100,
@@ -359,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   child: Text(
-                    'Tủ bếp của tôi ($_pantryEssentialsTotalCount)', // Việt hóa
+                    'Tủ bếp của tôi ($_pantryEssentialsTotalCount)',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -370,7 +357,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Xử lý khi nhấn "Xem công thức"
+                    // <-- Khi nhấn nút này, chuyển sang màn hình công thức
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => RecipesScreen(
+                        selectedIngredientIds: _userIngredientIds.toList(),
+                      )),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.lightGreen,
@@ -381,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Xem công thức', // Việt hóa
+                    'Xem công thức',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
