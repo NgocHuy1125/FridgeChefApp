@@ -1,22 +1,61 @@
-// services/mealdb_api.dart
 import 'dart:convert';
-import 'package:fridge_chef_app/models/recipe.dart';
+import '/models/recipe_model.dart';
 import 'package:http/http.dart' as http;
+import 'package:fridge_chef_app/services/api_constants.dart';
 
-class MealDBApi {
-  static Future<List<Meal>> searchMeals(String keyword) async {
-    final url = 'https://www.themealdb.com/api/json/v1/1/search.php?s=$keyword';
-    final response = await http.get(Uri.parse(url));
+class MealDbApiService {
+  // SỬA LẠI HOÀN TOÀN HÀM NÀY
+  Future<List<String>> getAllIngredientNames() async {
+    // 1. Dùng đúng URL endpoint
+    final uri = Uri.parse(
+      '${ApiConstants.mealDbBaseUrl}${ApiConstants.listIngredientsEndpoint}?i=list',
+    );
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['meals'] != null) {
-        return (data['meals'] as List).map((e) => Meal.fromJson(e)).toList();
-      } else {
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['meals'] != null) {
+          final List<dynamic> ingredientList = data['meals'];
+          // 2. Parse đúng key 'strIngredient'
+          return ingredientList
+              .map((json) => json['strIngredient'] as String)
+              .toList();
+        }
         return [];
+      } else {
+        throw Exception(
+          'API Error: Failed to load ingredients. Status code: ${response.statusCode}',
+        );
       }
-    } else {
-      throw Exception('Failed to load meals');
+    } catch (e) {
+      print('Network Error in getAllIngredientNames: $e');
+      throw Exception('Network Error: Could not fetch ingredients.');
+    }
+  }
+
+  Future<List<RecipeFromApi>> searchRecipes(String keyword) async {
+    final uri = Uri.parse(
+      '${ApiConstants.mealDbBaseUrl}${ApiConstants.searchEndpoint}?s=$keyword',
+    );
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['meals'] != null) {
+          final List<dynamic> mealList = data['meals'];
+          return mealList.map((json) => RecipeFromApi.fromJson(json)).toList();
+        } else {
+          return [];
+        }
+      } else {
+        throw Exception(
+          'API Error: Failed to load meals. Status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('Network Error in searchRecipes: $e');
+      throw Exception('Network Error: Could not fetch meals.');
     }
   }
 }

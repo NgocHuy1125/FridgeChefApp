@@ -65,5 +65,4 @@ class MealDBApi {
       throw Exception("Lỗi khi tải chi tiết món ăn");
     }
   }
-  
 }
