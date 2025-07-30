@@ -1,75 +1,55 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
-import 'screens/search_screen.dart';
-import 'screens/favorite_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/recipe_detail_screen.dart'; // Thêm màn chi tiết
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '/screens/splash_screen.dart';
+import '/providers/user_data_provider.dart';
 
-void main() {
-  runApp(SuperCookApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+
+  runApp(const MyApp());
 }
 
-class SuperCookApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SuperCook Clone',
-      theme: ThemeData(primarySwatch: Colors.orange, fontFamily: 'Roboto'),
-      home: MainNavigation(),
-      // Định nghĩa điều hướng có tham số
-      onGenerateRoute: (settings) {
-        if (settings.name == '/detail') {
-          final mealId = settings.arguments as String;
-          return MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(mealId: mealId),
-          );
-        }
-        return null;
-      },
-    );
-  }
-}
+final supabase = Supabase.instance.client;
 
-class MainNavigation extends StatefulWidget {
-  @override
-  _MainNavigationState createState() => _MainNavigationState();
-}
-
-class _MainNavigationState extends State<MainNavigation> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _pages = [
-    HomeScreen(),
-    SearchScreen(),
-    FavoriteScreen(),
-    ProfileScreen(),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Colors.orange,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang chủ'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Tìm kiếm'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Yêu thích',
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => UserDataProvider()..fetchInitialUserData(),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Fridge Chef',
+        theme: ThemeData(
+          primarySwatch: Colors.green,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          scaffoldBackgroundColor: Colors.grey[100],
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.white,
+            elevation: 1,
+            iconTheme: IconThemeData(color: Colors.black87),
+            titleTextStyle: TextStyle(
+              color: Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              
+            ),
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hồ sơ'),
-        ],
+        ),
+        home: const SplashScreen(),
       ),
     );
   }
-}
+} 
