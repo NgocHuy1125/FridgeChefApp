@@ -4,6 +4,7 @@ import 'package:fridge_chef_app/main.dart';
 
 class UserDataProvider extends ChangeNotifier {
   bool _disposed = false;
+
   @override
   void dispose() {
     _disposed = true;
@@ -16,17 +17,16 @@ class UserDataProvider extends ChangeNotifier {
   }
 
   Set<int> _favoriteRecipeIds = {};
-
   Set<int> get favoriteRecipeIds => _favoriteRecipeIds;
 
   Future<void> fetchInitialUserData() async {
     await fetchFavoriteIds();
   }
 
-  // Tải danh sách ID các món yêu thích từ Supabase
   Future<void> fetchFavoriteIds() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
+
     try {
       final response = await supabase
           .from('user_favorites')
@@ -52,33 +52,44 @@ class UserDataProvider extends ChangeNotifier {
     final recipeId = recipe.id;
     final currentlyFavorite = isFavorite(recipeId);
 
-    if (currentlyFavorite) {
-      _favoriteRecipeIds.remove(recipeId);
-    } else {
-      _favoriteRecipeIds.add(recipeId);
-    }
-    notifyListeners();
-
     try {
+      final existingRecipe =
+          await supabase
+              .from('recipes')
+              .select('id')
+              .eq('id', recipeId)
+              .maybeSingle();
+
+      if (existingRecipe == null) {
+        // 👇 Phải thêm user_id để RLS cho phép insert
+        await supabase.from('recipes').insert({
+          'id': recipeId,
+          'name': recipe.name,
+          'image_url': recipe.imageUrl,
+          'instructions': recipe.instructions,
+          'cooking_time_minutes': recipe.cookingTimeMinutes,
+          'difficulty': recipe.difficulty,
+          'user_id': userId, // ✅ Cực kỳ quan trọng
+        });
+      }
+
       if (currentlyFavorite) {
         await supabase.from('user_favorites').delete().match({
           'user_id': userId,
           'recipe_id': recipeId,
         });
+        _favoriteRecipeIds.remove(recipeId);
       } else {
         await supabase.from('user_favorites').insert({
           'user_id': userId,
           'recipe_id': recipeId,
         });
+        _favoriteRecipeIds.add(recipeId);
       }
+
+      notifyListeners();
     } catch (e) {
       print('Error toggling favorite: $e');
-
-      await fetchFavoriteIds();
     }
-  }
-
-  Future<void> addToCollection(int recipeId) async {
-    print('Added recipe $recipeId to a collection.');
   }
 }

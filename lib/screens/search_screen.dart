@@ -75,7 +75,6 @@ class _SearchScreenState extends State<SearchScreen> {
           Expanded(
             child: Consumer<SearchProvider>(
               builder: (context, provider, child) {
-                // ... (phần builder này giữ nguyên không thay đổi)
                 switch (provider.status) {
                   case SearchStatus.initial:
                     return const Center(
@@ -103,9 +102,15 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                           title: Text(recipe.name),
                           onTap: () {
-                            // TODO: Logic điều hướng
-                            print(
-                              'Tapped on API recipe: ${recipe.name} (ID: ${recipe.id})',
+                            // Điều hướng đến RecipeDetailScreen với recipeId
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => RecipeDetailScreenWrapper(
+                                      recipeId: int.parse(recipe.id),
+                                    ),
+                              ),
                             );
                           },
                         );

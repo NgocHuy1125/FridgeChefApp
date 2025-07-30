@@ -12,8 +12,15 @@ class RecipeDetailScreenWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => RecipeDetailProvider()..fetchRecipeDetails(recipeId),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => RecipeDetailProvider()..fetchRecipeDetails(recipeId),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => UserDataProvider()..fetchInitialUserData(),
+        ),
+      ],
       child: const RecipeDetailScreen(),
     );
   }
@@ -49,8 +56,6 @@ class RecipeDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildInfoSection(recipe),
-                    const SizedBox(height: 24),
                     _buildIngredientsSection(recipe),
                     const SizedBox(height: 24),
                     _buildProgressSection(context),
@@ -67,8 +72,7 @@ class RecipeDetailScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildSliverAppBar(BuildContext context, Recipe recipe) {
-    // Dùng watch ở đây để nút trái tim cập nhật ngay lập tức
+Widget _buildSliverAppBar(BuildContext context, Recipe recipe) {
     final userDataProvider = context.watch<UserDataProvider>();
     final isFavorite = userDataProvider.isFavorite(recipe.id);
 
@@ -77,7 +81,7 @@ class RecipeDetailScreen extends StatelessWidget {
       pinned: true,
       backgroundColor: Colors.white,
       elevation: 2,
-      foregroundColor: Colors.white, // Màu cho nút back và các icon
+      foregroundColor: Colors.white,
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.symmetric(horizontal: 60, vertical: 12),
         title: Text(
@@ -110,47 +114,30 @@ class RecipeDetailScreen extends StatelessWidget {
         ),
       ),
       actions: [
-        // Dùng read ở đây vì chỉ gọi hành động, không cần build lại appbar
         IconButton(
           icon: Icon(
             isFavorite ? Icons.favorite : Icons.favorite_border,
             color: isFavorite ? Colors.red : Colors.white,
           ),
-          onPressed:
-              () => context.read<UserDataProvider>().toggleFavorite(recipe),
+          onPressed: () async {
+            final userDataProvider = context.read<UserDataProvider>();
+            await userDataProvider.toggleFavorite(recipe);
+          },
         ),
         IconButton(
           icon: const Icon(Icons.bookmark_add_outlined, color: Colors.white),
-          onPressed:
-              () => context.read<UserDataProvider>().addToCollection(recipe.id),
+          onPressed: () async {
+            final userDataProvider = context.read<UserDataProvider>();
+            // await userDataProvider.saveRecipe(recipe.id);
+          },
         ),
       ],
     );
   }
 
-  Widget _buildInfoSection(Recipe recipe) {
-    return _buildSectionCard(
-      icon: Icons.info_outline_rounded,
-      title: 'Thông tin món ăn',
-      titleColor: Colors.blue.shade400,
-      child: Wrap(
-        spacing: 12.0,
-        runSpacing: 12.0,
-        children: [
-          if (recipe.difficulty != null)
-            _buildInfoDetailChip('Độ khó: ${recipe.difficulty}'),
-          if (recipe.cookingTimeMinutes != null)
-            _buildInfoDetailChip(
-              'Thời gian: ${recipe.cookingTimeMinutes} phút',
-            ),
-          _buildInfoDetailChip('Khẩu phần: 2 người'), // Dữ liệu giả
-        ],
-      ),
-    );
-  }
 
   Widget _buildIngredientsSection(Recipe recipe) {
-    final ingredients = recipe.ingredients ?? [];
+    final ingredients = recipe.ingredients;
     return _buildSectionCard(
       icon: Icons.kitchen_outlined,
       title: 'Nguyên liệu cần thiết',
@@ -160,38 +147,35 @@ class RecipeDetailScreen extends StatelessWidget {
               ? const Text('Không có thông tin nguyên liệu.')
               : Column(
                 children:
-                    ingredients
-                        .map(
-                          (item) => Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6.0),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
+                    ingredients.map((item) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 6.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.circle,
+                              color: Colors.green.shade300,
+                              size: 12,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(10),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                style: const TextStyle(fontSize: 16),
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.circle,
-                                  color: Colors.green.shade300,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    item.name,
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                ),
-                                // TODO: Hiển thị `quantity`
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
+                          ],
+                        ),
+                      );
+                    }).toList(),
               ),
     );
   }
@@ -339,7 +323,6 @@ class RecipeDetailScreen extends StatelessWidget {
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
       onPressed: () {
-        // TODO: Gọi hàm lưu vào cooking_history từ một provider
         print('Completed recipe: ${recipe.name}');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -372,7 +355,7 @@ class RecipeDetailScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: TextStyle(
+                  style: TextStyle( 
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: titleColor,

@@ -92,11 +92,11 @@ class SuggestionRecipeCard extends StatelessWidget {
                   isFavorite ? Colors.red : Colors.white,
                 ),
                 const SizedBox(width: 8),
-                _buildActionButton(
-                  Icons.bookmark_add_outlined,
-                  () => userDataProvider.addToCollection(recipe.id),
-                  Colors.white,
-                ),
+                // _buildActionButton(
+                //   Icons.bookmark_add_outlined,
+                //   () => userDataProvider.addToCollection(recipe.id),
+                //   Colors.white,
+                // ),
               ],
             ),
           ),

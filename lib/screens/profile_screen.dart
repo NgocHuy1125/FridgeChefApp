@@ -23,7 +23,6 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProfileProvider>();
-    // Lắng nghe UserDataProvider để cập nhật lại số lượng khi có thay đổi
     context.watch<UserDataProvider>();
 
     return Scaffold(
@@ -69,7 +68,7 @@ class ProfileScreen extends StatelessWidget {
                       child: _buildEmptyState(
                         'Bạn chưa nấu món nào',
                         Icons.menu_book,
-                      ), // Tạm thời
+                      ),
                     ),
                   ],
                 ),
@@ -80,18 +79,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildUserInfo(BuildContext context, ProfileProvider provider) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 40,
-          backgroundColor: Colors.purple.shade100,
-          child:
-              provider.userProfile?.avatarUrl != null
-                  ? ClipOval(
-                    child: CachedNetworkImage(
-                      imageUrl: provider.userProfile!.avatarUrl!,
-                    ),
-                  )
-                  : Icon(Icons.person, size: 50, color: Colors.purple.shade300),
-        ),
+        const Icon(Icons.person, size: 50, color: Colors.purple),
         const SizedBox(width: 16),
         Expanded(
           child: Column(

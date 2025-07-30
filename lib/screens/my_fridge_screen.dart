@@ -176,12 +176,10 @@ class MyFridgeScreen extends StatelessWidget {
   Widget _buildSuggestionContent(BuildContext context) {
     final provider = context.watch<MyFridgeProvider>();
 
-    // Nếu đang tải, hiển thị vòng xoay
     if (provider.isSuggesting) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Nếu không có kết quả, hiển thị thông báo
     if (provider.suggestedRecipes.isEmpty) {
       return const Center(
         child: Padding(
@@ -219,7 +217,6 @@ class MyFridgeScreen extends StatelessWidget {
             ],
           ),
         ),
-
         Expanded(
           child: ListView.builder(
             key: const PageStorageKey('suggestionList'),
@@ -414,6 +411,17 @@ class MyFridgeScreen extends StatelessWidget {
                             context
                                 .read<MyFridgeProvider>()
                                 .toggleIngredientInFridge(ingredient.name);
+                            if (selected &&
+                                context
+                                    .read<MyFridgeProvider>()
+                                    .myFridgeItems
+                                    .isNotEmpty &&
+                                context.read<MyFridgeProvider>().currentView ==
+                                    FridgeView.suggestions) {
+                              context
+                                  .read<MyFridgeProvider>()
+                                  .showSuggestionsView();
+                            }
                           },
                   avatar: Icon(
                     isInFridge ? Icons.check_circle : Icons.add,
@@ -461,18 +469,6 @@ class MyFridgeScreen extends StatelessWidget {
           style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       ),
-    );
-  }
-
-  Widget _buildIngredientList(
-    BuildContext context,
-    List<UserIngredient> ingredients,
-  ) {
-    return Column(
-      children:
-          ingredients
-              .map((item) => _buildIngredientTile(context, item))
-              .toList(),
     );
   }
 

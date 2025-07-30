@@ -25,7 +25,6 @@ class MyFridgeProvider extends ChangeNotifier {
 
   List<String> _allApiIngredientNamesForSearch = [];
 
-  // State mới để quản lý giao diện
   FridgeView _currentView = FridgeView.fridge;
   FridgeView get currentView => _currentView;
 
@@ -34,7 +33,9 @@ class MyFridgeProvider extends ChangeNotifier {
 
   bool _isSuggesting = false;
   bool get isSuggesting => _isSuggesting;
+
   bool _disposed = false;
+
   @override
   void dispose() {
     _disposed = true;
@@ -66,7 +67,6 @@ class MyFridgeProvider extends ChangeNotifier {
     }
   }
 
-  // Chuyển sang giao diện Tủ lạnh
   void showFridgeView() {
     if (_currentView != FridgeView.fridge) {
       _currentView = FridgeView.fridge;
@@ -81,35 +81,11 @@ class MyFridgeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final userId = supabase.auth.currentUser!.id;
-      final rpcResponse = await supabase.rpc(
-        'suggest_recipes',
-        params: {'current_user_id': userId},
-      );
-
-      if (rpcResponse is List && rpcResponse.isNotEmpty) {
-        final List<int> recipeIds =
-            rpcResponse.map<int>((item) => item['recipe_id'] as int).toList();
-        if (recipeIds.isEmpty) {
-          _suggestedRecipes = [];
-        } else {
-          final detailedResponse = await supabase
-              .from('recipes')
-              .select('*, recipe_ingredients(*, ingredients(*))')
-              .inFilter('id', recipeIds);
-          final recipes =
-              detailedResponse.map((item) => Recipe.fromJson(item)).toList();
-          recipes.sort(
-            (a, b) =>
-                recipeIds.indexOf(a.id).compareTo(recipeIds.indexOf(b.id)),
-          );
-          _suggestedRecipes = recipes;
-        }
-      } else {
-        _suggestedRecipes = [];
-      }
+      final ingredientNames = _myFridgeItems.map((item) => item.name).toList();
+      final recipes = await _apiService.suggestRecipes(ingredientNames);
+      _suggestedRecipes = recipes.cast<Recipe>();
     } catch (e) {
-      print('Error suggesting recipes: $e');
+      print('Error suggesting recipes from MealDB: $e');
       _suggestedRecipes = [];
     } finally {
       _isSuggesting = false;
@@ -156,7 +132,7 @@ class MyFridgeProvider extends ChangeNotifier {
     if (query.isEmpty) return [];
     return _allApiIngredientNamesForSearch
         .where((name) => name.toLowerCase().contains(query.toLowerCase()))
-        .map((name) => Ingredient(id: 0, name: name)) // Tạo Ingredient giả
+        .map((name) => Ingredient(id: 0, name: name))
         .take(5)
         .toList();
   }
@@ -179,17 +155,21 @@ class MyFridgeProvider extends ChangeNotifier {
               name: '',
             ),
       );
-
+      
       if (existingItem.ingredientId != -1) {
         await removeIngredientFromFridge(existingItem.ingredientId);
       } else {
         await addIngredientToFridge(trimmedName);
+        if (_currentView == FridgeView.suggestions) {
+          await showSuggestionsView();
+        }
       }
     } catch (e) {
       print('Error toggling ingredient: $e');
       await fetchMyFridgeItems();
     } finally {
       _processingIngredients.remove(lowerCaseName);
+      notifyListeners();
     }
   }
 
@@ -213,6 +193,7 @@ class MyFridgeProvider extends ChangeNotifier {
       await supabase.from('user_ingredients').insert({
         'user_id': userId,
         'ingredient_id': ingredientId,
+        'quantity': 1, // Thêm số lượng mặc định là 1
       });
       await fetchMyFridgeItems(notify: false);
     } catch (e) {
@@ -232,6 +213,7 @@ class MyFridgeProvider extends ChangeNotifier {
             ingredientId: -1,
             addedAt: DateTime.now(),
             name: '',
+            
           ),
     );
     if (itemToRemove.ingredientId == -1) return;
