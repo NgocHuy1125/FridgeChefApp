@@ -1,3 +1,5 @@
+// Ví dụ: lib/models/ingredient_model.dart
+
 class Ingredient {
   final int id;
   final String name;
@@ -19,7 +21,6 @@ class UserIngredient {
   final int ingredientId;
   final DateTime addedAt;
 
-  // Thông tin từ bảng ingredients (sau khi JOIN)
   final String name;
   final String? category;
   final String? imageUrl;
@@ -33,8 +34,18 @@ class UserIngredient {
     this.imageUrl,
   });
 
+  UserIngredient.empty()
+    : userId = '',
+      ingredientId = -1,
+      addedAt = DateTime.now(),
+      name = '',
+      category = null,
+      imageUrl = null;
+
+  bool get isEmpty => ingredientId == -1;
+  bool get isNotEmpty => ingredientId != -1;
+
   factory UserIngredient.fromSupabase(Map<String, dynamic> data) {
-    // Dữ liệu 'ingredients' là một object lồng vào từ JOIN
     final ingredientData = data['ingredients'] as Map<String, dynamic>? ?? {};
 
     return UserIngredient(

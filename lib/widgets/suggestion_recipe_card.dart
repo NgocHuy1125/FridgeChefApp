@@ -67,13 +67,12 @@ class SuggestionRecipeCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Ảnh nền món ăn
           CachedNetworkImage(
             imageUrl: recipe.imageUrl ?? '',
             fit: BoxFit.cover,
             errorWidget: (c, u, e) => Container(color: Colors.grey[200]),
           ),
-          // Lớp phủ mờ để làm nổi bật chữ
+
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),

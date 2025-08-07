@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '/models/ingredient_model.dart';
-import '/providers/my_fridge_provider.dart';
-import '/widgets/suggestion_recipe_card.dart';
+import '../models/ingredient_model.dart';
+import '../providers/my_fridge_provider.dart';
+import '../widgets/suggestion_recipe_card.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -10,6 +10,7 @@ class MyFridgeScreenWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Chỉ cần MyFridgeProvider là đủ ở đây
     return ChangeNotifierProvider(
       create: (_) => MyFridgeProvider()..initialize(),
       child: const MyFridgeScreen(),
@@ -17,8 +18,33 @@ class MyFridgeScreenWrapper extends StatelessWidget {
   }
 }
 
-class MyFridgeScreen extends StatelessWidget {
+class MyFridgeScreen extends StatefulWidget {
   const MyFridgeScreen({super.key});
+
+  @override
+  State<MyFridgeScreen> createState() => _MyFridgeScreenState();
+}
+
+class _MyFridgeScreenState extends State<MyFridgeScreen> {
+  final TextEditingController _ingredientController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _ingredientController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _addIngredientToFridge() {
+    final provider = context.read<MyFridgeProvider>();
+    final ingredientName = _ingredientController.text.trim();
+    if (ingredientName.isNotEmpty) {
+      provider.toggleIngredientInFridge(ingredientName);
+      _ingredientController.clear();
+      _focusNode.unfocus();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,24 +52,27 @@ class MyFridgeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child:
-                  provider.isScreenLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child:
-                            provider.currentView == FridgeView.fridge
-                                ? _buildFridgeContent(context)
-                                : _buildSuggestionContent(context),
-                      ),
-            ),
-          ],
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child:
+                    provider.isScreenLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child:
+                              provider.currentView == FridgeView.fridge
+                                  ? _buildFridgeContent(context, provider)
+                                  : _buildSuggestionContent(context, provider),
+                        ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -128,23 +157,22 @@ class MyFridgeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFridgeContent(BuildContext context) {
-    final provider = context.watch<MyFridgeProvider>();
+  Widget _buildFridgeContent(BuildContext context, MyFridgeProvider provider) {
     return RefreshIndicator(
+      key: const PageStorageKey('fridge_content'),
       onRefresh: () => provider.fetchMyFridgeItems(),
       child: CustomScrollView(
-        key: const PageStorageKey('fridgeList'),
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: _buildAddIngredientSection(context),
+              child: _buildAddIngredientSection(context, provider),
             ),
           ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildPopularIngredientsSection(context),
+              child: _buildPopularIngredientsSection(context, provider),
             ),
           ),
           SliverToBoxAdapter(
@@ -157,7 +185,7 @@ class MyFridgeScreen extends StatelessWidget {
             SliverFillRemaining(child: _buildEmptyState())
           else
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _buildIngredientTile(
@@ -173,17 +201,21 @@ class MyFridgeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSuggestionContent(BuildContext context) {
-    final provider = context.watch<MyFridgeProvider>();
-
-    // Nếu đang tải, hiển thị vòng xoay
+  // NỘI DUNG VIEW GỢI Ý
+  Widget _buildSuggestionContent(
+    BuildContext context,
+    MyFridgeProvider provider,
+  ) {
     if (provider.isSuggesting) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        key: ValueKey('suggest_loading'),
+        child: CircularProgressIndicator(),
+      );
     }
 
-    // Nếu không có kết quả, hiển thị thông báo
     if (provider.suggestedRecipes.isEmpty) {
       return const Center(
+        key: ValueKey('suggest_empty'),
         child: Padding(
           padding: EdgeInsets.all(24.0),
           child: Text(
@@ -195,49 +227,20 @@ class MyFridgeScreen extends StatelessWidget {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Gợi ý món ăn',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green.shade700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Từ ${provider.myFridgeItems.length} nguyên liệu trong tủ lạnh',
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          child: ListView.builder(
-            key: const PageStorageKey('suggestionList'),
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.suggestedRecipes.length,
-            itemBuilder: (context, index) {
-              return SuggestionRecipeCard(
-                recipe: provider.suggestedRecipes[index],
-              );
-            },
-          ),
-        ),
-      ],
+    return ListView.builder(
+      key: const PageStorageKey('suggestionList'),
+      padding: const EdgeInsets.all(16),
+      itemCount: provider.suggestedRecipes.length,
+      itemBuilder: (context, index) {
+        return SuggestionRecipeCard(recipe: provider.suggestedRecipes[index]);
+      },
     );
   }
 
-  Widget _buildAddIngredientSection(BuildContext context) {
-    final provider = context.read<MyFridgeProvider>();
+  Widget _buildAddIngredientSection(
+    BuildContext context,
+    MyFridgeProvider provider,
+  ) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -264,113 +267,44 @@ class MyFridgeScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Autocomplete<Ingredient>(
-              displayStringForOption: (Ingredient option) => option.name,
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                return provider.getFilteredSuggestions(textEditingValue.text);
-              },
-              onSelected: (Ingredient selection) {
-                provider.toggleIngredientInFridge(selection.name);
-              },
-              fieldViewBuilder: (
-                context,
-                controller,
-                focusNode,
-                onFieldSubmitted,
-              ) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          hintText: 'Nhập tên hoặc tìm kiếm...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: Colors.orange),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                          ),
-                        ),
-                        onSubmitted: (value) {
-                          if (value.isNotEmpty) {
-                            provider.toggleIngredientInFridge(value);
-                            controller.clear();
-                          }
-                        },
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _ingredientController,
+                    focusNode: _focusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Nhập tên hoặc chọn ở dưới...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.orange),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed:
-                            provider.isProcessing(controller.text)
-                                ? null
-                                : () {
-                                  if (controller.text.isNotEmpty) {
-                                    provider.toggleIngredientInFridge(
-                                      controller.text,
-                                    );
-                                    controller.clear();
-                                    focusNode.unfocus();
-                                  }
-                                },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: EdgeInsets.zero,
-                          disabledBackgroundColor: Colors.orange.shade200,
-                        ),
-                        child:
-                            provider.isProcessing(controller.text)
-                                ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                                : const Icon(Icons.add, color: Colors.white),
-                      ),
-                    ),
-                  ],
-                );
-              },
-              optionsViewBuilder: (context, onSelected, options) {
-                return Align(
-                  alignment: Alignment.topLeft,
-                  child: Material(
-                    elevation: 4.0,
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width - 68,
-                      child: ListView.builder(
-                        padding: EdgeInsets.zero,
-                        itemCount: options.length,
-                        shrinkWrap: true,
-                        itemBuilder: (BuildContext context, int index) {
-                          final Ingredient option = options.elementAt(index);
-                          return InkWell(
-                            onTap: () => onSelected(option),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Text(option.name),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    onSubmitted: (_) => _addIngredientToFridge(),
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _addIngredientToFridge,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -378,8 +312,10 @@ class MyFridgeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPopularIngredientsSection(BuildContext context) {
-    final provider = context.watch<MyFridgeProvider>();
+  Widget _buildPopularIngredientsSection(
+    BuildContext context,
+    MyFridgeProvider provider,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -407,16 +343,17 @@ class MyFridgeScreen extends StatelessWidget {
                           )
                           : Text(ingredient.name),
                   selected: isInFridge,
-                  onSelected:
-                      isProcessing
-                          ? null
-                          : (bool selected) {
-                            context
-                                .read<MyFridgeProvider>()
-                                .toggleIngredientInFridge(ingredient.name);
-                          },
+                  onSelected: (bool selected) {
+                    if (isProcessing) return;
+                    _ingredientController.text = ingredient.name;
+                    _ingredientController
+                        .selection = TextSelection.fromPosition(
+                      TextPosition(offset: _ingredientController.text.length),
+                    );
+                    _focusNode.requestFocus();
+                  },
                   avatar: Icon(
-                    isInFridge ? Icons.check_circle : Icons.add,
+                    isInFridge ? Icons.check_circle : Icons.add_circle_outline,
                     color: isInFridge ? Colors.white : Colors.grey.shade600,
                     size: 18,
                   ),
@@ -464,82 +401,23 @@ class MyFridgeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildIngredientList(
-    BuildContext context,
-    List<UserIngredient> ingredients,
-  ) {
-    return Column(
-      children:
-          ingredients
-              .map((item) => _buildIngredientTile(context, item))
-              .toList(),
-    );
-  }
-
   Widget _buildIngredientTile(BuildContext context, UserIngredient ingredient) {
-    final categoryColor =
-        (ingredient.category ?? '').toLowerCase().contains('thịt')
-            ? Colors.red.shade100
-            : Colors.green.shade100;
-    final categoryTextColor =
-        (ingredient.category ?? '').toLowerCase().contains('thịt')
-            ? Colors.red.shade800
-            : Colors.green.shade800;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shadowColor: Colors.grey.withOpacity(0.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         title: Text(
           ingredient.name,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Row(
-            children: [
-              if (ingredient.category != null &&
-                  ingredient.category!.isNotEmpty)
-                Chip(
-                  label: Text(
-                    ingredient.category!,
-                    style: TextStyle(
-                      color: categoryTextColor,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                  backgroundColor: categoryColor,
-                  visualDensity: VisualDensity.compact,
-                  side: BorderSide.none,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                ),
-              const Spacer(),
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 14,
-                color: Colors.orange,
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                '3 ngày nữa hết hạn',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
         trailing: IconButton(
           icon: const Icon(Icons.close_rounded, color: Colors.redAccent),
           onPressed:
-              () => context.read<MyFridgeProvider>().removeIngredientFromFridge(
-                ingredient.ingredientId,
+              () => context.read<MyFridgeProvider>().toggleIngredientInFridge(
+                ingredient.name,
               ),
         ),
       ),

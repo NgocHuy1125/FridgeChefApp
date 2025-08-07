@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/ingredient_model.dart';
 import '../models/recipe_model.dart';
@@ -23,9 +24,7 @@ class MyFridgeProvider extends ChangeNotifier {
   List<Ingredient> _popularDbIngredients = [];
   List<Ingredient> get popularDbIngredients => _popularDbIngredients;
 
-  List<String> _allApiIngredientNamesForSearch = [];
-
-  // State mới để quản lý giao diện
+  // === STATE MỚI CHO GIAO DIỆN ===
   FridgeView _currentView = FridgeView.fridge;
   FridgeView get currentView => _currentView;
 
@@ -34,7 +33,9 @@ class MyFridgeProvider extends ChangeNotifier {
 
   bool _isSuggesting = false;
   bool get isSuggesting => _isSuggesting;
+
   bool _disposed = false;
+
   @override
   void dispose() {
     _disposed = true;
@@ -43,9 +44,7 @@ class MyFridgeProvider extends ChangeNotifier {
 
   @override
   void notifyListeners() {
-    if (!_disposed) {
-      super.notifyListeners();
-    }
+    if (!_disposed) super.notifyListeners();
   }
 
   // --- LOGIC ---
@@ -62,11 +61,10 @@ class MyFridgeProvider extends ChangeNotifier {
       print("Initialization failed: $e");
     } finally {
       _isScreenLoading = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
-  // Chuyển sang giao diện Tủ lạnh
   void showFridgeView() {
     if (_currentView != FridgeView.fridge) {
       _currentView = FridgeView.fridge;
@@ -76,6 +74,7 @@ class MyFridgeProvider extends ChangeNotifier {
 
   Future<void> showSuggestionsView() async {
     if (_myFridgeItems.isEmpty) return;
+
     _isSuggesting = true;
     _currentView = FridgeView.suggestions;
     notifyListeners();
@@ -88,15 +87,16 @@ class MyFridgeProvider extends ChangeNotifier {
       );
 
       if (rpcResponse is List && rpcResponse.isNotEmpty) {
-        final List<int> recipeIds =
-            rpcResponse.map<int>((item) => item['recipe_id'] as int).toList();
+        final List<dynamic> recipeIds =
+            rpcResponse.map((item) => item['recipe_id']).toList();
         if (recipeIds.isEmpty) {
           _suggestedRecipes = [];
         } else {
           final detailedResponse = await supabase
               .from('recipes')
               .select('*, recipe_ingredients(*, ingredients(*))')
-              .inFilter('id', recipeIds);
+              .inFilter('id', recipeIds); // Dùng inFilter
+
           final recipes =
               detailedResponse.map((item) => Recipe.fromJson(item)).toList();
           recipes.sort(
@@ -109,28 +109,28 @@ class MyFridgeProvider extends ChangeNotifier {
         _suggestedRecipes = [];
       }
     } catch (e) {
-      print('Error suggesting recipes: $e');
+      print('--- ERROR SUGGESTING RECIPES ---: $e');
       _suggestedRecipes = [];
     } finally {
       _isSuggesting = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
   Future<void> fetchMyFridgeItems({bool notify = true}) async {
-    final userId = supabase.auth.currentUser!.id;
     try {
+      final userId = supabase.auth.currentUser!.id;
       final response = await supabase
           .from('user_ingredients')
           .select('*, ingredients (*)')
           .eq('user_id', userId)
-          .order('added_at');
+          .order('added_at', ascending: false);
       _myFridgeItems =
           response.map((item) => UserIngredient.fromSupabase(item)).toList();
     } catch (e) {
-      print('Error fetching fridge items: $e');
+      print('--- ERROR fetching fridge items: $e');
     }
-    if (notify) notifyListeners();
+    if (notify && !_disposed) notifyListeners();
   }
 
   Future<void> _fetchPopularDbIngredients() async {
@@ -143,26 +143,10 @@ class MyFridgeProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _fetchAllIngredientsFromApiForSearch() async {
-    try {
-      _allApiIngredientNamesForSearch =
-          await _apiService.getAllIngredientNames();
-    } catch (e) {
-      print('Error fetching all API ingredients for search: $e');
-    }
-  }
-
-  List<Ingredient> getFilteredSuggestions(String query) {
-    if (query.isEmpty) return [];
-    return _allApiIngredientNamesForSearch
-        .where((name) => name.toLowerCase().contains(query.toLowerCase()))
-        .map((name) => Ingredient(id: 0, name: name)) // Tạo Ingredient giả
-        .take(5)
-        .toList();
-  }
-
   Future<void> toggleIngredientInFridge(String ingredientName) async {
     final trimmedName = ingredientName.trim();
+    if (trimmedName.isEmpty) return;
+
     final lowerCaseName = trimmedName.toLowerCase();
 
     _processingIngredients.add(lowerCaseName);
@@ -171,25 +155,20 @@ class MyFridgeProvider extends ChangeNotifier {
     try {
       final existingItem = _myFridgeItems.firstWhere(
         (item) => item.name.toLowerCase() == lowerCaseName,
-        orElse:
-            () => UserIngredient(
-              userId: '',
-              ingredientId: -1,
-              addedAt: DateTime.now(),
-              name: '',
-            ),
+        orElse: () => UserIngredient.empty(),
       );
 
-      if (existingItem.ingredientId != -1) {
+      if (existingItem.isNotEmpty) {
         await removeIngredientFromFridge(existingItem.ingredientId);
       } else {
         await addIngredientToFridge(trimmedName);
       }
     } catch (e) {
       print('Error toggling ingredient: $e');
-      await fetchMyFridgeItems();
+      await fetchMyFridgeItems(notify: false);
     } finally {
       _processingIngredients.remove(lowerCaseName);
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -198,47 +177,35 @@ class MyFridgeProvider extends ChangeNotifier {
     if (_myFridgeItems.any((item) => item.name.toLowerCase() == lowerCaseName))
       return;
 
-    _processingIngredients.add(lowerCaseName);
-    notifyListeners();
-
     try {
-      final upsertResponse =
+      await supabase
+          .from('ingredients')
+          .upsert({'name': ingredientName.trim()}, onConflict: 'name')
+          .select('id')
+          .single();
+
+      final userId = supabase.auth.currentUser!.id;
+      final ingredient =
           await supabase
               .from('ingredients')
-              .upsert({'name': ingredientName.trim()}, onConflict: 'name')
               .select('id')
+              .eq('name', ingredientName.trim())
               .single();
-      final ingredientId = upsertResponse['id'];
-      final userId = supabase.auth.currentUser!.id;
+      final ingredientId = ingredient['id'];
+
       await supabase.from('user_ingredients').insert({
         'user_id': userId,
         'ingredient_id': ingredientId,
       });
+
       await fetchMyFridgeItems(notify: false);
     } catch (e) {
       print('Error adding ingredient: $e');
-    } finally {
-      _processingIngredients.remove(lowerCaseName);
-      notifyListeners();
+      throw Exception('Failed to add ingredient');
     }
   }
 
   Future<void> removeIngredientFromFridge(int ingredientId) async {
-    final itemToRemove = _myFridgeItems.firstWhere(
-      (item) => item.ingredientId == ingredientId,
-      orElse:
-          () => UserIngredient(
-            userId: '',
-            ingredientId: -1,
-            addedAt: DateTime.now(),
-            name: '',
-          ),
-    );
-    if (itemToRemove.ingredientId == -1) return;
-
-    _processingIngredients.add(itemToRemove.name.toLowerCase());
-    notifyListeners();
-
     try {
       final userId = supabase.auth.currentUser!.id;
       await supabase.from('user_ingredients').delete().match({
@@ -248,9 +215,7 @@ class MyFridgeProvider extends ChangeNotifier {
       await fetchMyFridgeItems(notify: false);
     } catch (e) {
       print('Error removing ingredient: $e');
-    } finally {
-      _processingIngredients.remove(itemToRemove.name.toLowerCase());
-      notifyListeners();
+      throw Exception('Failed to remove ingredient');
     }
   }
 }
