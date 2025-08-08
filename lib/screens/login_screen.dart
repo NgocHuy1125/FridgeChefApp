@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fridge_chef_app/screens/home_screen.dart';
 import 'package:provider/provider.dart';
 import '/providers/auth_provider.dart';
 import '/screens/signup_screen.dart';
@@ -55,6 +56,11 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      if (!mounted) return;
+
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (e) {
       _showErrorSnackBar(e.toString());
     }

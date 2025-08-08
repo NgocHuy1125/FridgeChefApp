@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '/models/comment_model.dart';
 import '/models/ingredient_model.dart';
 import '/models/tag_model.dart';
@@ -6,12 +8,8 @@ import '/models/user_profile_model.dart';
 class Recipe {
   final int id;
   final String name;
-  final String? description;
   final String? instructions;
   final String? imageUrl;
-  final int? cookingTimeMinutes;
-  final String? difficulty;
-  final DateTime? createdAt;
 
   final List<Ingredient> ingredients;
   final List<Tag> tags;
@@ -20,12 +18,8 @@ class Recipe {
   Recipe({
     required this.id,
     required this.name,
-    this.description,
     this.instructions,
     this.imageUrl,
-    this.cookingTimeMinutes,
-    this.difficulty,
-    this.createdAt,
     this.ingredients = const [],
     this.tags = const [],
     this.comments = const [],
@@ -35,12 +29,8 @@ class Recipe {
     return Recipe(
       id: json['id'],
       name: json['name'],
-      description: json['description'],
       instructions: json['instructions'],
       imageUrl: json['image_url'],
-      cookingTimeMinutes: json['cooking_time_minutes'],
-      difficulty: json['difficulty'],
-      createdAt: DateTime.tryParse(json['created_at'] ?? ''),
       ingredients:
           (json['ingredients'] as List?)
               ?.map((e) => Ingredient.fromJson(e))
@@ -57,12 +47,15 @@ class Recipe {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
-      'description': description,
       'instructions': instructions,
       'image_url': imageUrl,
-      'cooking_time_minutes': cookingTimeMinutes,
-      'difficulty': difficulty,
+      'ingredients': ingredients
+          .map((e) => {
+                'name': e.name,
+              })
+          .toList(),
     };
   }
 }
@@ -82,10 +75,10 @@ class RecipeFromApi {
 
   factory RecipeFromApi.fromJson(Map<String, dynamic> json) {
     return RecipeFromApi(
-      id: json['idMeal'],
-      name: json['strMeal'],
-      imageUrl: json['strMealThumb'],
-      instructions: json['strInstructions'],
+      id: json['idMeal']?.toString() ?? json['id']?.toString() ?? '0',
+      name: json['strMeal'] ?? json['name'] ?? 'Không rõ',
+      imageUrl: json['strMealThumb'] ?? json['image_url'] ?? '',
+      instructions: json['strInstructions'] ?? json['instructions'] ?? '',
     );
   }
 }

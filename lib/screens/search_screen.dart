@@ -5,7 +5,6 @@ import '/providers/search_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-// Wrapper không thay đổi
 class SearchScreenWrapper extends StatelessWidget {
   const SearchScreenWrapper({super.key});
 
@@ -18,7 +17,6 @@ class SearchScreenWrapper extends StatelessWidget {
   }
 }
 
-// Chuyển thành StatefulWidget
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -27,7 +25,6 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  // 1. Tạo một TextEditingController
   final _searchController = TextEditingController();
 
   @override
@@ -36,12 +33,9 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  // Hàm để gọi tìm kiếm, tránh lặp code
   void _performSearch() {
-    // Ẩn bàn phím
     FocusScope.of(context).unfocus();
-    // Gọi hàm search từ provider với giá trị hiện tại của controller
-    context.read<SearchProvider>().search(_searchController.text);
+    context.read<SearchProvider>().searchAllSources(_searchController.text);
   }
 
   @override
@@ -54,28 +48,23 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               autofocus: true,
-              // 2. Gán controller cho TextField
               controller: _searchController,
               decoration: InputDecoration(
                 labelText: 'Nhập tên món ăn (vd: chicken, beef)',
-                // 3. Sửa lại suffixIcon để nó là một IconButton
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
-                  // 4. Khi nhấn vào icon, gọi hàm _performSearch
                   onPressed: _performSearch,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              // 5. Khi nhấn Enter trên bàn phím, cũng gọi hàm _performSearch
               onSubmitted: (_) => _performSearch(),
             ),
           ),
           Expanded(
             child: Consumer<SearchProvider>(
               builder: (context, provider, child) {
-                // ... (phần builder này giữ nguyên không thay đổi)
                 switch (provider.status) {
                   case SearchStatus.initial:
                     return const Center(
@@ -103,9 +92,14 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                           title: Text(recipe.name),
                           onTap: () {
-                            // TODO: Logic điều hướng
-                            print(
-                              'Tapped on API recipe: ${recipe.name} (ID: ${recipe.id})',
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => RecipeDetailScreenWrapper(
+                                      recipeId: int.tryParse(recipe.id) ?? 0,
+                                    ),
+                              ),
                             );
                           },
                         );

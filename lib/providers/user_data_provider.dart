@@ -93,8 +93,6 @@ class UserDataProvider extends ChangeNotifier {
           'name': recipe.name,
           'image_url': recipe.imageUrl,
           'instructions': recipe.instructions,
-          'cooking_time_minutes': recipe.cookingTimeMinutes,
-          'difficulty': recipe.difficulty,
           'user_id': userId,
         });
       }

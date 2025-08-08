@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import '/models/recipe_model.dart';
 import 'package:fridge_chef_app/main.dart';
+import '/providers/user_data_provider.dart';
 
 class FavoritesProvider extends ChangeNotifier {
-  bool _disposed = false;
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
+  final UserDataProvider userDataProvider;
 
-  @override
-  void notifyListeners() {
-    if (!_disposed) super.notifyListeners();
+  FavoritesProvider(this.userDataProvider) {
+    userDataProvider.addListener(_handleFavoritesChanged);
+    fetchFavoriteRecipes();
   }
 
   bool _isLoading = true;
@@ -21,7 +17,10 @@ class FavoritesProvider extends ChangeNotifier {
   List<Recipe> _favoriteRecipes = [];
   List<Recipe> get favoriteRecipes => _favoriteRecipes;
 
-  // Hàm này sẽ tải chi tiết các món ăn dựa trên danh sách ID từ Supabase
+  void _handleFavoritesChanged() {
+    fetchFavoriteRecipes();
+  }
+
   Future<void> fetchFavoriteRecipes() async {
     _isLoading = true;
     notifyListeners();
@@ -29,25 +28,36 @@ class FavoritesProvider extends ChangeNotifier {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) {
       _isLoading = false;
+      _favoriteRecipes = [];
       notifyListeners();
       return;
     }
 
     try {
-      // Query bảng user_favorites và JOIN để lấy chi tiết từ bảng recipes
       final response = await supabase
           .from('user_favorites')
-          .select('recipes (*)') // Dấu * để lấy tất cả các cột của bảng recipes
+          .select('recipes (*)')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
       _favoriteRecipes =
           response.map((item) => Recipe.fromJson(item['recipes'])).toList();
     } catch (e) {
-      print('Error fetching favorite recipes details: $e');
+      print('Error fetching favorite recipes: $e');
+      _favoriteRecipes = [];
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    userDataProvider.removeListener(_handleFavoritesChanged);
+    super.dispose();
+  }
+
+  void refreshFavorites() {
+    if (!_isLoading) fetchFavoriteRecipes();
   }
 }

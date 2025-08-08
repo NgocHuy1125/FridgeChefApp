@@ -21,7 +21,6 @@ class SuggestionRecipeCard extends StatelessWidget {
         fridgeProvider.myFridgeItems.map((e) => e.ingredientId).toSet();
 
     final recipeIngredients = recipe.ingredients ?? [];
-
     final availableIngredients =
         recipeIngredients
             .where((ing) => myIngredientIds.contains(ing.id))
@@ -72,14 +71,12 @@ class SuggestionRecipeCard extends StatelessWidget {
             fit: BoxFit.cover,
             errorWidget: (c, u, e) => Container(color: Colors.grey[200]),
           ),
-
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
               child: Container(color: Colors.black.withOpacity(0.25)),
             ),
           ),
-
           Positioned(
             top: 16,
             right: 16,
@@ -91,15 +88,9 @@ class SuggestionRecipeCard extends StatelessWidget {
                   isFavorite ? Colors.red : Colors.white,
                 ),
                 const SizedBox(width: 8),
-                _buildActionButton(
-                  Icons.bookmark_add_outlined,
-                  () => userDataProvider.addToCollection(recipe.id),
-                  Colors.white,
-                ),
               ],
             ),
           ),
-
           Positioned(
             bottom: 16,
             left: 16,
@@ -120,18 +111,6 @@ class SuggestionRecipeCard extends StatelessWidget {
                 Row(
                   children: [
                     _buildInfoChip(Icons.star, '4.5', Colors.yellow.shade700),
-                    const SizedBox(width: 10),
-                    _buildInfoChip(
-                      Icons.timer_outlined,
-                      '${recipe.cookingTimeMinutes ?? '?'} phút',
-                      Colors.white,
-                    ),
-                    const SizedBox(width: 10),
-                    _buildInfoChip(
-                      Icons.people_outline,
-                      '2 người',
-                      Colors.white,
-                    ), // Dữ liệu giả
                   ],
                 ),
               ],
@@ -157,7 +136,7 @@ class SuggestionRecipeCard extends StatelessWidget {
             children: [
               Chip(
                 label: Text(
-                  recipe.difficulty ?? 'Dễ',
+                  'Dễ', // Loại bỏ dependency vào recipe.difficulty
                   style: TextStyle(
                     color: Colors.green.shade800,
                     fontWeight: FontWeight.bold,
@@ -175,7 +154,6 @@ class SuggestionRecipeCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-
           const Text(
             'Nguyên liệu có sẵn:',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -205,7 +183,6 @@ class SuggestionRecipeCard extends StatelessWidget {
                         side: BorderSide.none,
                       ),
                     ),
-                // Hiển thị số lượng còn thiếu
                 if (missingCount > 0)
                   Chip(
                     label: Text('+${missingCount} khác'),
