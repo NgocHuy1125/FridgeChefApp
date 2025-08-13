@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fridge_chef_app/providers/profile_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '/models/recipe_model.dart';
 import '/providers/recipe_detail_provider.dart';
 import '/providers/user_data_provider.dart';
@@ -39,6 +41,19 @@ class RecipeDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _saveViewHistory(BuildContext context, Recipe recipe) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    await Supabase.instance.client.from('view_history').upsert({
+      'user_id': userId,
+      'recipe_id': recipe.id,
+      'last_viewed_at': DateTime.now().toIso8601String(),
+    });
+    // Nếu muốn cập nhật lại dữ liệu hồ sơ ngay lập tức:
+    final profileProvider = context.read<ProfileProvider?>();
+    profileProvider?.fetchProfileData();
+  }
+
   Widget _buildBody(BuildContext context, RecipeDetailProvider provider) {
     switch (provider.status) {
       case DetailStatus.loading:
@@ -47,6 +62,8 @@ class RecipeDetailScreen extends StatelessWidget {
         return Center(child: Text(provider.errorMessage));
       case DetailStatus.success:
         final recipe = provider.recipe!;
+        // Ghi lại lịch sử xem khi load thành công
+        _saveViewHistory(context, recipe);
         return CustomScrollView(
           slivers: [
             _buildSliverAppBar(context, recipe),
@@ -275,14 +292,34 @@ class RecipeDetailScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 50),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
-      onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã lưu vào lịch sử!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      onPressed: () async {
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId != null) {
+          await Supabase.instance.client.from('cooking_history').insert({
+            'user_id': userId,
+            'recipe_id': recipe.id,
+            'cooked_at': DateTime.now().toIso8601String(),
+          });
+          // Cập nhật lại dữ liệu hồ sơ nếu có ProfileProvider trong context
+          final profileProvider = context.read<ProfileProvider?>();
+          profileProvider?.fetchProfileData();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã lưu vào lịch sử nấu ăn!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bạn cần đăng nhập để lưu lịch sử nấu ăn!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       },
     );
   }
