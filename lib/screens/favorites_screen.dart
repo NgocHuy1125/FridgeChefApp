@@ -1,318 +1,98 @@
 import 'package:flutter/material.dart';
-import 'package:app_goi_y_mon_an/models/recipe.dart';
-import 'package:app_goi_y_mon_an/utils/mock_data.dart'; // Import mock data
-import 'package:app_goi_y_mon_an/screens/home_screen.dart'; // Để điều hướng về HomeScreen
-import 'package:app_goi_y_mon_an/screens/recipes_screen.dart'; // Để điều hướng đến RecipesScreen
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class FavoritesScreen extends StatefulWidget {
-  const FavoritesScreen({super.key});
+import '/models/recipe_model.dart';
+import '/providers/favorites_provider.dart';
+import '/providers/user_data_provider.dart';
+import '/screens/recipe_detail_screen.dart';
 
-  @override
-  State<FavoritesScreen> createState() => _FavoritesScreenState();
-}
-
-class _FavoritesScreenState extends State<FavoritesScreen> {
-  List<Recipe> _favoritedRecipes = [];
-  Set<String> _favoritedRecipeIds = {};
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFavoritesData();
-  }
-
-  // Sử dụng didChangeDependencies để cập nhật nếu mockFavoritedRecipeIds thay đổi
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Cập nhật trạng thái yêu thích từ mock data mỗi khi widget được rebuild/route thay đổi
-    _loadFavoritesData();
-  }
-
-  void _loadFavoritesData() {
-    // Lấy tất cả công thức và lọc ra những món đã được yêu thích
-    final allRecipes = mockRecipes;
-    _favoritedRecipeIds = mockFavoritedRecipeIds.toSet(); // Cập nhật từ mock data chung
-
-    List<Recipe> currentFavorited = [];
-    for (var recipe in allRecipes) {
-      if (_favoritedRecipeIds.contains(recipe.id)) {
-        currentFavorited.add(recipe);
-      }
-    }
-    // Sắp xếp các món yêu thích theo thời gian tạo (mới nhất lên đầu)
-    currentFavorited.sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
-
-    setState(() {
-      _favoritedRecipes = currentFavorited;
-      _isLoading = false;
-    });
-  }
-
-  void _toggleFavorite(Recipe recipe) {
-    if (recipe.id == null) return;
-
-    setState(() {
-      if (_favoritedRecipeIds.contains(recipe.id)) {
-        _favoritedRecipeIds.remove(recipe.id);
-        mockFavoritedRecipeIds.remove(recipe.id); // Cập nhật mock data chung
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đã bỏ yêu thích món "${recipe.name}"'),
-            duration: const Duration(seconds: 1),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      } else {
-        _favoritedRecipeIds.add(recipe.id!);
-        mockFavoritedRecipeIds.add(recipe.id!); // Cập nhật mock data chung
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đã thêm "${recipe.name}" vào mục yêu thích!'),
-            duration: const Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    });
-    // Gọi lại _loadFavoritesData để cập nhật UI sau khi thay đổi
-    _loadFavoritesData();
-    // Trong thực tế, bạn sẽ gọi API để cập nhật trạng thái yêu thích trên backend
-  }
+class FavoritesScreenWrapper extends StatelessWidget {
+  const FavoritesScreenWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.deepOrange,
-        elevation: 0,
-        leading: const Padding(
-          padding: EdgeInsets.all(8.0),
-          child: CircleAvatar(
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: Colors.deepOrange),
-          ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Yêu thích',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            Text(
-              'Bạn có ${_favoritedRecipes.length} món yêu thích',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
-                  ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
+    return ChangeNotifierProvider(
+      create: (_) => UserDataProvider()..fetchInitialUserData(),
+      child: Builder(
+        builder: (context) {
+          final userData = context.read<UserDataProvider>();
+          return ChangeNotifierProvider(
+            create: (_) => FavoritesProvider(userData),
+            child: const FavoritesScreen(),
+          );
+        },
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _favoritedRecipes.isEmpty
-              ? Center(
-                  child: Text(
-                    'Bạn chưa có món ăn yêu thích nào.',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: _favoritedRecipes.length,
-                  itemBuilder: (context, index) {
-                    final recipe = _favoritedRecipes[index];
-                    final isFavorited = _favoritedRecipeIds.contains(recipe.id);
+    );
+  }
+}
 
+class FavoritesScreen extends StatelessWidget {
+  const FavoritesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final favProvider = context.watch<FavoritesProvider>();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Món ăn yêu thích')),
+      body:
+          favProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : favProvider.favoriteRecipes.isEmpty
+              ? const Center(child: Text('Bạn chưa có món ăn yêu thích nào.'))
+              : RefreshIndicator(
+                onRefresh:
+                    () =>
+                        context
+                            .read<FavoritesProvider>()
+                            .fetchFavoriteRecipes(),
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: favProvider.favoriteRecipes.length,
+                  itemBuilder: (context, index) {
+                    final recipe = favProvider.favoriteRecipes[index];
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 16.0),
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15.0),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: MediaQuery.of(context).size.width * 0.25,
-                              height: MediaQuery.of(context).size.width * 0.25 * 0.75,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10.0),
-                                image: DecorationImage(
-                                  image: NetworkImage(recipe.imageUrl ?? 'https://placehold.co/600x400/CCCCCC/FFFFFF?text=No_Image'),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12.0),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    recipe.name,
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.deepOrange,
-                                        ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4.0),
-                                  Text(
-                                    recipe.description,
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: Colors.grey.shade700,
-                                        ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 8.0),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.timer, size: 16, color: Colors.grey.shade600),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${recipe.cookingTimeMinutes} phút',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Icon(Icons.star, size: 16, color: Colors.amber.shade700),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        recipe.difficulty,
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.topRight,
-                              child: IconButton(
-                                icon: Icon(
-                                  isFavorited ? Icons.favorite : Icons.favorite_border,
-                                  color: isFavorited ? Colors.red : Colors.grey,
-                                  size: 28,
-                                ),
-                                onPressed: () => _toggleFavorite(recipe),
-                              ),
-                            ),
-                          ],
+                      child: ListTile(
+                        leading: CachedNetworkImage(
+                          imageUrl: recipe.imageUrl ?? '',
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          errorWidget: (c, u, e) => const Icon(Icons.image),
                         ),
+                        title: Text(
+                          recipe.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.favorite, color: Colors.red),
+                          onPressed: () async {
+                            final userData = context.read<UserDataProvider>();
+                            await userData.toggleFavorite(recipe);
+                            // Không cần gọi refreshFavorites() nữa
+                          },
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => RecipeDetailScreenWrapper(
+                                    recipeId: recipe.id,
+                                  ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
                 ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.kitchen),
-            label: 'Tủ bếp',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu),
-            label: 'Thực đơn',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Yêu thích',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Mua sắm',
-          ),
-        ],
-        currentIndex: 2, // Đặt mục "Yêu thích" là được chọn
-        onTap: (index) {
-          if (index == 0) { // Quay về màn hình Tủ bếp
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
-          } else if (index == 1) { // Đến màn hình Thực đơn
-            // Khi quay lại Thực đơn, không có nguyên liệu được chọn trước đó
-            // Bạn có thể lưu trữ trạng thái selectedIngredientIds hoặc yêu cầu user chọn lại
-            // Để đơn giản, ở đây sẽ truyền một danh sách rỗng (hiển thị tất cả)
-            // Hoặc có thể truyền danh sách nguyên liệu mặc định/từ tủ bếp của user
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => RecipesScreen(
-                selectedIngredientIds: [], // Tùy chọn: truyền danh sách rỗng hoặc logic khác
-              )),
-            );
-          }
-        },
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Chuyển đến màn hình Tủ bếp của tôi nếu có (hoặc tự xử lý)
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade100,
-                    foregroundColor: Colors.deepOrange,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: const Text(
-                    'Tủ bếp của tôi',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Nút này có thể không cần thiết trên màn hình yêu thích, hoặc có chức năng khác
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.lightGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: const Text(
-                    'Xem công thức', // Giữ nguyên tên để đồng bộ với Homescreen nếu muốn
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
