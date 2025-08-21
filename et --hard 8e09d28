@@ -1,0 +1,14 @@
+[33m45d12a7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mthird[m[33m, [m[1;31morigin/third[m[33m)[m HEAD@{0}: reset: moving to origin/third
+[33m8e09d28[m HEAD@{1}: checkout: moving from third to third
+[33m8e09d28[m HEAD@{2}: commit: update
+[33m08ee4c4[m HEAD@{3}: checkout: moving from first to third
+[33m0e587ce[m[33m ([m[1;31morigin/first[m[33m, [m[1;32mfirst[m[33m)[m HEAD@{4}: reset: moving to HEAD
+[33m0e587ce[m[33m ([m[1;31morigin/first[m[33m, [m[1;32mfirst[m[33m)[m HEAD@{5}: pull origin first: Fast-forward
+[33m3efe489[m HEAD@{6}: reset: moving to HEAD
+[33m3efe489[m HEAD@{7}: checkout: moving from main to first
+[33m7c6e26d[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{8}: checkout: moving from third to main
+[33m08ee4c4[m HEAD@{9}: commit: update code
+[33m3efe489[m HEAD@{10}: checkout: moving from first to third
+[33m3efe489[m HEAD@{11}: checkout: moving from first to first
+[33m3efe489[m HEAD@{12}: checkout: moving from main to first
+[33m7c6e26d[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{13}: clone: from https://github.com/NgocHuy1125/FridgeChefApp.git

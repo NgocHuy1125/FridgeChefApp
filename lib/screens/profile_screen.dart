@@ -66,10 +66,15 @@ class ProfileScreen extends StatelessWidget {
                       title: 'Lịch sử nấu ăn',
                       icon: Icons.soup_kitchen_outlined,
                       iconColor: Colors.green,
-                      child: _buildEmptyState(
-                        'Bạn chưa nấu món nào',
-                        Icons.menu_book,
-                      ), // Tạm thời
+                      child:
+                          provider.cookedHistory.isEmpty
+                              ? _buildEmptyState(
+                                'Bạn chưa nấu món nào',
+                                Icons.menu_book,
+                              )
+                              : _buildRecipeHorizontalList(
+                                provider.cookedHistory,
+                              ),
                     ),
                   ],
                 ),
@@ -130,7 +135,7 @@ class ProfileScreen extends StatelessWidget {
                       child: const Text('Đăng xuất'),
                       onPressed: () {
                         Navigator.of(dialogContext).pop();
-                        context.read<ProfileProvider>().signOut();
+                        context.read<ProfileProvider>().signOut(context);
                       },
                     ),
                   ],

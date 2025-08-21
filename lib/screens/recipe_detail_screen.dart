@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:iconsax/iconsax.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '/models/recipe_model.dart';
 import '/providers/recipe_detail_provider.dart';
 import '/providers/user_data_provider.dart';
@@ -85,9 +87,18 @@ class RecipeDetailScreen extends StatelessWidget {
         titlePadding: const EdgeInsets.symmetric(horizontal: 60, vertical: 12),
         title: Text(
           recipe.name,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
-            shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+            color: Colors.white, // 🌟 Màu trắng nổi bật
+            fontSize: 22,
+            shadows: [
+              Shadow(
+                blurRadius: 6,
+                color: Colors.black54,
+                offset: Offset(2, 2), // đổ bóng giúp chữ nổi hơn
+              ),
+            ],
           ),
         ),
         centerTitle: true,
@@ -99,13 +110,14 @@ class RecipeDetailScreen extends StatelessWidget {
               fit: BoxFit.cover,
               errorWidget: (c, u, e) => Container(color: Colors.grey),
             ),
+            // Lớp gradient để ảnh phía trên tối hơn -> chữ dễ đọc
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                  stops: const [0.5, 1.0],
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
+                  stops: const [0.6, 1.0],
                 ),
               ),
             ),
@@ -267,23 +279,47 @@ class RecipeDetailScreen extends StatelessWidget {
   }
 
   Widget _buildCompleteButton(BuildContext context, Recipe recipe) {
-    return ElevatedButton.icon(
-      icon: const Icon(Icons.check_circle_outline),
-      label: const Text('Hoàn thành món ăn'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã lưu vào lịch sử!'),
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          icon: const Icon(Icons.check_circle_outline),
+          label: const Text('Hoàn thành món ăn'),
+          style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-        );
-      },
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Đã lưu vào lịch sử!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 16), // Khoảng cách giữa các nút
+        if (recipe.youtubeUrl != null && recipe.youtubeUrl!.isNotEmpty)
+          ElevatedButton.icon(
+            icon: const Icon(Iconsax.play),
+            label: const Text('Xem video'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              final url = recipe.youtubeUrl ?? '';
+              launchUrl(Uri.parse(url)).then((value) {}).catchError((e) {});
+            },
+          ),
+      ],
     );
   }
 }

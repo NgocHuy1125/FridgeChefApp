@@ -3,6 +3,7 @@ import '/models/recipe_model.dart';
 import '/models/user_profile_model.dart';
 import 'package:fridge_chef_app/main.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '/screens/login_screen.dart';
 
 class ProfileProvider extends ChangeNotifier {
   bool _disposed = false;
@@ -38,6 +39,9 @@ class ProfileProvider extends ChangeNotifier {
   List<Recipe> _favoriteRecipes = [];
   List<Recipe> get favoriteRecipes => _favoriteRecipes;
 
+  List<Recipe> _cookedHistory = [];
+  List<Recipe> get cookedHistory => _cookedHistory;
+
   // **** THAY THẾ TOÀN BỘ HÀM NÀY ****
   Future<void> fetchProfileData() async {
     if (!_isLoading) {
@@ -64,6 +68,12 @@ class ProfileProvider extends ChangeNotifier {
             .eq('user_id', userId)
             .order('created_at', ascending: false)
             .limit(5),
+        supabase
+            .from('cooking_history')
+            .select('recipes(*)')
+            .eq('user_id', userId)
+            .order('cooked_at', ascending: false)
+            .limit(5),
       ]);
 
       // Gán kết quả từ các Future
@@ -83,6 +93,13 @@ class ProfileProvider extends ChangeNotifier {
               .whereType<Recipe>()
               .toList();
       _favoriteCount = _favoriteRecipes.length; // Lấy count từ độ dài list
+
+      final cookedHistoryData = futures[3] as List;
+      _cookedHistory =
+          cookedHistoryData
+              .map((item) => Recipe.fromJson(item['recipes']))
+              .whereType<Recipe>()
+              .toList();
 
       // Lấy các giá trị count một cách tuần tự để đảm bảo không lỗi
       final cookedResponse = await supabase
@@ -110,7 +127,12 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signOut() async {
+  Future<void> signOut(BuildContext context) async {
     await supabase.auth.signOut();
+    // Xóa dữ liệu user nếu cần
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 }

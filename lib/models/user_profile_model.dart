@@ -3,8 +3,6 @@ class UserProfile {
   final String? username;
   final String? avatarUrl;
   final DateTime? updatedAt;
-  // Bỏ email vì nó đã có trong đối tượng User của Supabase Auth
-  // Bỏ createdAt vì thường không cần hiển thị
 
   UserProfile({
     required this.id,
@@ -26,18 +24,10 @@ class UserProfile {
     );
   }
 
-  // Chuyển đổi một đối tượng UserProfile thành Map để gửi lên Supabase
-  // Hữu ích cho việc UPDATE profile
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'username': username,
-      'avatar_url': avatarUrl,
-      // `updated_at` thường được DB tự động cập nhật
-    };
+    return {'id': id, 'username': username, 'avatar_url': avatarUrl};
   }
 
-  // (Tùy chọn) Hàm copyWith để dễ dàng tạo bản sao và cập nhật trạng thái
   UserProfile copyWith({
     String? id,
     String? username,

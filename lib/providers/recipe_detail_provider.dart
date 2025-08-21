@@ -53,9 +53,7 @@ class RecipeDetailProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('Fetching recipe with ID: $recipeId'); // Debug recipeId
-
-      // 1. Thử lấy từ Supabase
+      print('Fetching recipe with ID: $recipeId');
       final supabaseResponse =
           await _supabase
               .from('recipes')
@@ -69,7 +67,6 @@ class RecipeDetailProvider extends ChangeNotifier {
         _recipe = Recipe.fromJson(supabaseData);
         print('Fetched from Supabase: ${_recipe!.name}');
       } else {
-        // 2. Nếu không có trong Supabase, lấy từ TheMealDB
         print('Not found in Supabase, fetching from TheMealDB');
         final uri = Uri.parse(
           'https://www.themealdb.com/api/json/v1/1/lookup.php?i=$recipeId',
@@ -88,8 +85,11 @@ class RecipeDetailProvider extends ChangeNotifier {
               imageUrl: meal['strMealThumb'] ?? '',
               ingredients: _parseIngredients(meal),
               instructions: meal['strInstructions'] ?? '',
+              youtubeUrl: meal['strYoutube'],
             );
-            print('Fetched from TheMealDB: ${_recipe!.name}');
+            print(
+              'Fetched from TheMealDB: ${_recipe!.name}, YouTube URL: ${_recipe!.youtubeUrl ?? "null"}',
+            );
           } else {
             throw Exception(
               'Không tìm thấy món ăn với ID: $recipeId trong TheMealDB',
