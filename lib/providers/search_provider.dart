@@ -36,4 +36,15 @@ class SearchProvider with ChangeNotifier {
 
     notifyListeners();
   }
+
+  Future<List<RecipeFromApi>> getRecipesByCategory(String category) async {
+    // Không gọi notifyListeners() ở đây, để FutureBuilder xử lý
+    try {
+      final results = await _apiService.fetchRecipesByCategory(category);
+      return results;
+    } catch (e) {
+      _errorMessage = 'Lỗi: $e';
+      return [];
+    }
+  }
 }

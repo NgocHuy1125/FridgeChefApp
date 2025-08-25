@@ -3,6 +3,7 @@ import '/models/recipe_model.dart';
 import '/models/user_profile_model.dart';
 import 'package:fridge_chef_app/main.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '/screens/login_screen.dart';
 
 class ProfileProvider extends ChangeNotifier {
   bool _disposed = false;
@@ -126,7 +127,12 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signOut() async {
+  Future<void> signOut(BuildContext context) async {
     await supabase.auth.signOut();
+    // Xóa dữ liệu user nếu cần
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fridge_chef_app/screens/recipe_detail_screen.dart';
 import '/models/recipe_model.dart';
 import '/providers/profile_provider.dart';
 import '/providers/user_data_provider.dart';
@@ -51,6 +52,14 @@ class ProfileScreen extends StatelessWidget {
                       icon: Icons.history,
                       iconColor: Colors.orange,
                       child: _buildRecipeHorizontalList(provider.viewedHistory),
+                      onTap:
+                          provider.viewedHistory.isEmpty
+                              ? null
+                              : () => _showRecipeListDialog(
+                                context,
+                                'Món ăn đã xem gần đây',
+                                provider.viewedHistory,
+                              ),
                     ),
                     const SizedBox(height: 24),
                     _buildSectionCard(
@@ -60,18 +69,37 @@ class ProfileScreen extends StatelessWidget {
                       child: _buildRecipeHorizontalList(
                         provider.favoriteRecipes,
                       ),
+                      onTap:
+                          provider.favoriteRecipes.isEmpty
+                              ? null
+                              : () => _showRecipeListDialog(
+                                context,
+                                'Món ăn yêu thích',
+                                provider.favoriteRecipes,
+                              ),
                     ),
                     const SizedBox(height: 24),
                     _buildSectionCard(
                       title: 'Lịch sử nấu ăn',
                       icon: Icons.soup_kitchen_outlined,
                       iconColor: Colors.green,
-                      child: provider.cookedHistory.isEmpty
-                          ? _buildEmptyState(
-                              'Bạn chưa nấu món nào',
-                              Icons.menu_book,
-                            )
-                          : _buildRecipeHorizontalList(provider.cookedHistory),
+                      child:
+                          provider.cookedHistory.isEmpty
+                              ? _buildEmptyState(
+                                'Bạn chưa nấu món nào',
+                                Icons.menu_book,
+                              )
+                              : _buildRecipeHorizontalList(
+                                provider.cookedHistory,
+                              ),
+                      onTap:
+                          provider.cookedHistory.isEmpty
+                              ? null
+                              : () => _showRecipeListDialog(
+                                context,
+                                'Lịch sử nấu ăn',
+                                provider.cookedHistory,
+                              ),
                     ),
                   ],
                 ),
@@ -132,7 +160,7 @@ class ProfileScreen extends StatelessWidget {
                       child: const Text('Đăng xuất'),
                       onPressed: () {
                         Navigator.of(dialogContext).pop();
-                        context.read<ProfileProvider>().signOut();
+                        context.read<ProfileProvider>().signOut(context);
                       },
                     ),
                   ],
@@ -185,33 +213,38 @@ class ProfileScreen extends StatelessWidget {
     required IconData icon,
     required Color iconColor,
     required Widget child,
+    VoidCallback? onTap,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: iconColor.withOpacity(0.05),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: iconColor),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor,
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: iconColor.withOpacity(0.05),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: iconColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            child,
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              child,
+            ],
+          ),
         ),
       ),
     );
@@ -245,36 +278,118 @@ class ProfileScreen extends StatelessWidget {
         itemCount: recipes.length,
         itemBuilder: (context, index) {
           final recipe = recipes[index];
-          return Container(
-            width: 120,
-            margin: const EdgeInsets.only(right: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: recipe.imageUrl ?? '',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorWidget:
-                          (c, u, e) => Container(color: Colors.grey[200]),
+          return GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder:
+                      (_) => RecipeDetailScreenWrapper(recipeId: recipe.id),
+                ),
+              );
+            },
+            child: Container(
+              width: 120,
+              margin: const EdgeInsets.only(right: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: recipe.imageUrl ?? '',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorWidget:
+                            (c, u, e) => Container(color: Colors.grey[200]),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  recipe.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    recipe.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
             ),
           );
         },
       ),
+    );
+  }
+
+  void _showRecipeListDialog(
+    BuildContext context,
+    String title,
+    List<Recipe> recipes,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 500),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: recipes.length,
+                    itemBuilder: (context, index) {
+                      final recipe = recipes[index];
+                      return ListTile(
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: recipe.imageUrl ?? '',
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorWidget:
+                                (c, u, e) => Container(color: Colors.grey[200]),
+                          ),
+                        ),
+                        title: Text(
+                          recipe.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => RecipeDetailScreenWrapper(
+                                    recipeId: recipe.id,
+                                  ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

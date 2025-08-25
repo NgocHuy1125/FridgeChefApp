@@ -20,7 +20,7 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       await supabase.auth.signInWithPassword(email: email, password: password);
-      return true; // Đăng nhập thành công
+      return true;
     } on AuthException {
       rethrow;
     } catch (e) {
