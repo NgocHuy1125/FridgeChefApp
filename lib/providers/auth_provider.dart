@@ -1,3 +1,5 @@
+// lib/providers/auth_provider.dart
+
 import 'package:flutter/material.dart';
 import 'package:fridge_chef_app/main.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,12 +8,19 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners(); // Thông báo cho UI cập nhật
+  User? _user;
+  User? get user => _user;
+  void setUser(User? newUser) {
+    if (_user != newUser) {
+      _user = newUser;
+      notifyListeners();
+    }
   }
 
-  // --- CÁC HÀM XỬ LÝ LOGIC ---
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
 
   Future<bool> signInWithEmailPassword({
     required String email,
@@ -19,7 +28,12 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      await supabase.auth.signInWithPassword(email: email, password: password);
+      final response = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      setUser(response.user);
       return true;
     } on AuthException {
       rethrow;

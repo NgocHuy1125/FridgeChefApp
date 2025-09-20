@@ -46,7 +46,7 @@ class SeeMoreScreen extends StatelessWidget {
                       trailing: IconButton(
                         icon: const Icon(Icons.favorite, color: Colors.red),
                         onPressed: () {
-                          // Logic xóa khỏi yêu thích (nếu cần) có thể được thêm vào UserDataProvider
+                          // Xử lý bỏ yêu thích món ăn
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Đã xóa khỏi yêu thích!'),

@@ -6,7 +6,6 @@ import '/models/recipe_model.dart';
 import '/providers/recipe_detail_provider.dart';
 import '/providers/user_data_provider.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
 
 class RecipeDetailScreenWrapper extends StatelessWidget {
   final int recipeId;
@@ -14,15 +13,13 @@ class RecipeDetailScreenWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => RecipeDetailProvider()..fetchRecipeDetails(recipeId),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => UserDataProvider()..fetchInitialUserData(),
-        ),
-      ],
+    final userDataProvider = context.read<UserDataProvider>();
+
+    return ChangeNotifierProvider(
+      create:
+          (_) =>
+              RecipeDetailProvider()
+                ..fetchRecipeDetails(recipeId, userDataProvider),
       child: const RecipeDetailScreen(),
     );
   }
@@ -48,6 +45,9 @@ class RecipeDetailScreen extends StatelessWidget {
       case DetailStatus.error:
         return Center(child: Text(provider.errorMessage));
       case DetailStatus.success:
+        if (provider.recipe == null) {
+          return const Center(child: Text("Không thể tải thông tin món ăn."));
+        }
         final recipe = provider.recipe!;
         return CustomScrollView(
           slivers: [
@@ -90,13 +90,13 @@ class RecipeDetailScreen extends StatelessWidget {
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.white, // 🌟 Màu trắng nổi bật
+            color: Colors.white,
             fontSize: 22,
             shadows: [
               Shadow(
                 blurRadius: 6,
                 color: Colors.black54,
-                offset: Offset(2, 2), // đổ bóng giúp chữ nổi hơn
+                offset: Offset(2, 2),
               ),
             ],
           ),
@@ -110,7 +110,6 @@ class RecipeDetailScreen extends StatelessWidget {
               fit: BoxFit.cover,
               errorWidget: (c, u, e) => Container(color: Colors.grey),
             ),
-            // Lớp gradient để ảnh phía trên tối hơn -> chữ dễ đọc
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -130,7 +129,8 @@ class RecipeDetailScreen extends StatelessWidget {
             isFavorite ? Icons.favorite : Icons.favorite_border,
             color: isFavorite ? Colors.red : Colors.white,
           ),
-          onPressed: () => userDataProvider.toggleFavorite(recipe),
+          onPressed:
+              () => context.read<UserDataProvider>().toggleFavorite(recipe),
         ),
       ],
     );
@@ -146,11 +146,11 @@ class RecipeDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.kitchen, color: Colors.green),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.kitchen, color: Colors.green),
+                SizedBox(width: 8),
+                Text(
                   'Nguyên liệu',
                   style: TextStyle(
                     fontSize: 20,
@@ -161,16 +161,23 @@ class RecipeDetailScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...recipe.ingredients.map(
-              (ingredient) => ListTile(
-                leading: const Icon(
-                  Icons.circle,
-                  size: 10,
-                  color: Colors.green,
+            if (recipe.ingredients.isEmpty)
+              const Text(
+                'Không có thông tin nguyên liệu chi tiết.',
+                style: TextStyle(color: Colors.grey),
+              )
+            else
+              ...recipe.ingredients.map(
+                (ingredient) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.circle,
+                    size: 10,
+                    color: Colors.green,
+                  ),
+                  title: Text(ingredient.name),
                 ),
-                title: Text(ingredient.name),
               ),
-            ),
           ],
         ),
       ),
@@ -185,7 +192,6 @@ class RecipeDetailScreen extends StatelessWidget {
         provider.totalSteps == 0
             ? 0.0
             : provider.completedSteps.length / provider.totalSteps;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -223,7 +229,6 @@ class RecipeDetailScreen extends StatelessWidget {
     RecipeDetailProvider provider,
   ) {
     final steps = provider.steps;
-
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 0,
@@ -233,11 +238,11 @@ class RecipeDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.format_list_numbered, color: Colors.purple),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.format_list_numbered, color: Colors.purple),
+                SizedBox(width: 8),
+                Text(
                   'Hướng dẫn',
                   style: TextStyle(
                     fontSize: 20,
@@ -248,30 +253,37 @@ class RecipeDetailScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...List.generate(steps.length, (index) {
-              final isCompleted = provider.completedSteps.contains(index);
-              return ListTile(
-                leading: CircleAvatar(
-                  radius: 12,
-                  backgroundColor: isCompleted ? Colors.green : Colors.grey,
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(color: Colors.white),
+            if (steps.isEmpty)
+              const Text(
+                'Không có hướng dẫn chi tiết.',
+                style: TextStyle(color: Colors.grey),
+              )
+            else
+              ...List.generate(steps.length, (index) {
+                final isCompleted = provider.completedSteps.contains(index);
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: 12,
+                    backgroundColor: isCompleted ? Colors.green : Colors.grey,
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ),
-                ),
-                title: Text(
-                  steps[index].trim(),
-                  style: TextStyle(
-                    decoration:
-                        isCompleted
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                    color: isCompleted ? Colors.grey : Colors.black,
+                  title: Text(
+                    steps[index].trim(),
+                    style: TextStyle(
+                      decoration:
+                          isCompleted
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                      color: isCompleted ? Colors.grey : Colors.black,
+                    ),
                   ),
-                ),
-                onTap: () => provider.toggleStep(index),
-              );
-            }),
+                  onTap: () => provider.toggleStep(index),
+                );
+              }),
           ],
         ),
       ),
@@ -293,15 +305,16 @@ class RecipeDetailScreen extends StatelessWidget {
             ),
           ),
           onPressed: () {
+            context.read<UserDataProvider>().addCookingToHistory(recipe.id);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Đã lưu vào lịch sử!'),
+                content: Text('Đã lưu vào lịch sử nấu ăn!'),
                 backgroundColor: Colors.green,
               ),
             );
           },
         ),
-        const SizedBox(height: 16), // Khoảng cách giữa các nút
+        const SizedBox(height: 16),
         if (recipe.youtubeUrl != null && recipe.youtubeUrl!.isNotEmpty)
           ElevatedButton.icon(
             icon: const Icon(Iconsax.play),
@@ -314,9 +327,17 @@ class RecipeDetailScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: () {
-              final url = recipe.youtubeUrl ?? '';
-              launchUrl(Uri.parse(url)).then((value) {}).catchError((e) {});
+            onPressed: () async {
+              final url = Uri.parse(recipe.youtubeUrl!);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Không thể mở link: ${recipe.youtubeUrl}'),
+                  ),
+                );
+              }
             },
           ),
       ],

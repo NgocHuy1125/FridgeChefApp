@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fridge_chef_app/screens/recipe_detail_screen.dart';
 import '/models/recipe_model.dart';
-import '/providers/profile_provider.dart';
 import '/providers/user_data_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -11,9 +10,14 @@ class ProfileScreenWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ProfileProvider()..fetchProfileData(),
-      child: const ProfileScreen(),
+    return Consumer<UserDataProvider>(
+      builder: (context, userDataProvider, child) {
+        if (userDataProvider.userProfile == null &&
+            !userDataProvider.isLoading) {
+          Future.microtask(() => userDataProvider.loadAllUserData());
+        }
+        return const ProfileScreen();
+      },
     );
   }
 }
@@ -23,9 +27,7 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ProfileProvider>();
-    // Lắng nghe UserDataProvider để cập nhật lại số lượng khi có thay đổi
-    context.watch<UserDataProvider>();
+    final provider = context.watch<UserDataProvider>();
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -36,7 +38,7 @@ class ProfileScreen extends StatelessWidget {
               )
               : RefreshIndicator(
                 onRefresh:
-                    () => context.read<ProfileProvider>().fetchProfileData(),
+                    () => context.read<UserDataProvider>().loadAllUserData(),
                 child: ListView(
                   padding: const EdgeInsets.symmetric(
                     vertical: 24,
@@ -107,20 +109,22 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserInfo(BuildContext context, ProfileProvider provider) {
+  Widget _buildUserInfo(BuildContext context, UserDataProvider provider) {
     return Row(
       children: [
         CircleAvatar(
           radius: 40,
           backgroundColor: Colors.purple.shade100,
+          backgroundImage:
+              (provider.userProfile?.avatarUrl != null &&
+                      provider.userProfile!.avatarUrl!.isNotEmpty)
+                  ? CachedNetworkImageProvider(provider.userProfile!.avatarUrl!)
+                  : null,
           child:
-              provider.userProfile?.avatarUrl != null
-                  ? ClipOval(
-                    child: CachedNetworkImage(
-                      imageUrl: provider.userProfile!.avatarUrl!,
-                    ),
-                  )
-                  : Icon(Icons.person, size: 50, color: Colors.purple.shade300),
+              (provider.userProfile?.avatarUrl == null ||
+                      provider.userProfile!.avatarUrl!.isEmpty)
+                  ? Icon(Icons.person, size: 50, color: Colors.purple.shade300)
+                  : null,
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -144,36 +148,38 @@ class ProfileScreen extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.logout, color: Colors.grey),
           tooltip: 'Đăng xuất',
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (BuildContext dialogContext) {
-                return AlertDialog(
-                  title: const Text('Xác nhận Đăng xuất'),
-                  content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
-                  actions: <Widget>[
-                    TextButton(
-                      child: const Text('Hủy'),
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                    ),
-                    TextButton(
-                      child: const Text('Đăng xuất'),
-                      onPressed: () {
-                        Navigator.of(dialogContext).pop();
-                        context.read<ProfileProvider>().signOut(context);
-                      },
-                    ),
-                  ],
-                );
-              },
-            );
-          },
+          onPressed: () => _showSignOutDialog(context),
         ),
       ],
     );
   }
 
-  Widget _buildStatsSection(ProfileProvider provider) {
+  void _showSignOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Xác nhận Đăng xuất'),
+          content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Hủy'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: const Text('Đăng xuất'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                context.read<UserDataProvider>().signOut(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatsSection(UserDataProvider provider) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -182,11 +188,8 @@ class ProfileScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildStatItem(
-              provider.viewedHistory.length.toString(),
-              'Đã xem gần đây',
-            ),
-            _buildStatItem(provider.cookedCount.toString(), 'Món đã nấu'),
+            _buildStatItem(provider.viewedCount.toString(), 'Đã xem'),
+            _buildStatItem(provider.cookedCount.toString(), 'Đã nấu'),
             _buildStatItem(provider.favoriteCount.toString(), 'Yêu thích'),
           ],
         ),
@@ -218,13 +221,13 @@ class ProfileScreen extends StatelessWidget {
     required Widget child,
     VoidCallback? onTap,
   }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: iconColor.withOpacity(0.05),
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -242,6 +245,13 @@ class ProfileScreen extends StatelessWidget {
                       color: iconColor,
                     ),
                   ),
+                  const Spacer(),
+                  if (onTap != null)
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -273,7 +283,6 @@ class ProfileScreen extends StatelessWidget {
     if (recipes.isEmpty) {
       return _buildEmptyState('Chưa có món ăn nào', Icons.no_food);
     }
-
     return SizedBox(
       height: 150,
       child: ListView.builder(

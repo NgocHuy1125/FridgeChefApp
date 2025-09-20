@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '/screens/splash_screen.dart';
 import '/providers/user_data_provider.dart';
 import '/providers/auth_provider.dart';
+import '/providers/my_fridge_provider.dart';
+import '/providers/search_provider.dart';
+import '/screens/splash_screen.dart';
+import '/screens/login_screen.dart';
+import '/screens/home_screen.dart';
 
-void main() async {
+late final SupabaseClient supabase;
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
 
@@ -15,10 +21,10 @@ void main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
+  supabase = Supabase.instance.client;
+
   runApp(const MyApp());
 }
-
-final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -27,10 +33,37 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => UserDataProvider()..fetchInitialUserData(),
-        ),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+
+        ChangeNotifierProxyProvider<AuthProvider, UserDataProvider>(
+          create: (_) => UserDataProvider(),
+          update: (context, auth, previousUserData) {
+            if (auth.user != null && previousUserData?.userProfile == null) {
+              return previousUserData!..loadAllUserData();
+            }
+
+            if (auth.user == null) {
+              return UserDataProvider();
+            }
+            return previousUserData ?? UserDataProvider();
+          },
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, MyFridgeProvider>(
+          create: (_) => MyFridgeProvider(),
+          update: (context, auth, previousFridgeData) {
+            if (auth.user != null &&
+                previousFridgeData!.myFridgeItems.isEmpty) {
+              return previousFridgeData..initialize();
+            }
+            if (auth.user == null) {
+              return MyFridgeProvider();
+            }
+            return previousFridgeData ?? MyFridgeProvider();
+          },
+        ),
+
+        ChangeNotifierProvider(create: (_) => SearchProvider()),
       ],
       child: MaterialApp(
         title: 'Fridge Chef',
@@ -49,8 +82,44 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const SplashScreen(),
+        debugShowCheckedModeBanner: false,
+
+        home: const AuthGate(),
       ),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+        if (snapshot.hasData && snapshot.data?.session != null) {
+          // Cập nhật trạng thái trong AuthProvider một cách an toàn
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              context.read<AuthProvider>().setUser(
+                snapshot.data!.session!.user,
+              );
+            }
+          });
+          return const HomeScreen();
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            context.read<AuthProvider>().setUser(null);
+          }
+        });
+        return const LoginScreen();
+      },
     );
   }
 }

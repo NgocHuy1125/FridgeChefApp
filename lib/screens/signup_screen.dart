@@ -54,7 +54,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: _passwordController.text.trim(),
       );
       _showSnackBar('Đăng ký thành công! Vui lòng kiểm tra email để xác thực.');
-      // Quay lại màn hình đăng nhập
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       _showSnackBar(e.toString(), isError: true);

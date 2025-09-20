@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fridge_chef_app/screens/recipe_detail_screen.dart';
 import '/models/recipe_model.dart';
-import '/providers/favorites_provider.dart';
 import '/providers/user_data_provider.dart';
-import '/screens/recipe_detail_screen.dart';
-import '/screens/see_more_screen.dart';
+import 'package:provider/provider.dart';
 
 class FavoritesScreenWrapper extends StatelessWidget {
   const FavoritesScreenWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => UserDataProvider()..fetchInitialUserData(),
-      child: Builder(
-        builder: (context) {
-          final userData = context.read<UserDataProvider>();
-          return ChangeNotifierProvider(
-            create: (_) => FavoritesProvider(userData),
-            child: const FavoritesScreen(),
-          );
-        },
-      ),
+    return Consumer<UserDataProvider>(
+      builder: (context, userDataProvider, child) {
+        if (userDataProvider.favoriteRecipes.isEmpty &&
+            !userDataProvider.isLoading) {
+          Future.microtask(() {
+            userDataProvider.loadAllUserData();
+          });
+        }
+        return const FavoritesScreen();
+      },
     );
   }
 }
@@ -32,104 +29,135 @@ class FavoritesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final favProvider = context.watch<FavoritesProvider>();
+    final userDataProvider = context.watch<UserDataProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Món ăn yêu thích')),
-      body:
-          favProvider.isLoading && favProvider.favoriteRecipes.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : favProvider.favoriteRecipes.isEmpty
-              ? const Center(child: Text('Bạn chưa có món ăn yêu thích nào.'))
-              : RefreshIndicator(
-                onRefresh:
-                    () =>
-                        context
-                            .read<FavoritesProvider>()
-                            .fetchFavoriteRecipes(),
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text(
+          'Món ăn yêu thích',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+      ),
+      body: RefreshIndicator(
+        onRefresh: () => context.read<UserDataProvider>().loadAllUserData(),
+        child: _buildBody(context, userDataProvider),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, UserDataProvider provider) {
+    if (provider.isLoading && provider.favoriteRecipes.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (provider.favoriteRecipes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.favorite_border, size: 80, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            const Text(
+              'Chưa có món ăn yêu thích nào',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: provider.favoriteRecipes.length,
+      itemBuilder: (context, index) {
+        final recipe = provider.favoriteRecipes[index];
+        return _buildFavoriteRecipeCard(context, recipe, provider);
+      },
+    );
+  }
+
+  Widget _buildFavoriteRecipeCard(
+    BuildContext context,
+    Recipe recipe,
+    UserDataProvider provider,
+  ) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      elevation: 3,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => RecipeDetailScreenWrapper(recipeId: recipe.id),
+            ),
+          );
+        },
+        child: Row(
+          children: [
+            CachedNetworkImage(
+              imageUrl: recipe.imageUrl ?? '',
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+              errorWidget:
+                  (c, u, e) => Container(
+                    width: 100,
+                    height: 100,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey,
+                    ),
+                  ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(8.0),
-                        itemCount:
-                            favProvider.favoriteRecipes.length +
-                            1, // +1 cho nút See More
-                        itemBuilder: (context, index) {
-                          if (index < favProvider.favoriteRecipes.length) {
-                            final recipe = favProvider.favoriteRecipes[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              child: ListTile(
-                                leading: CachedNetworkImage(
-                                  imageUrl: recipe.imageUrl ?? '',
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                  errorWidget:
-                                      (c, u, e) => const Icon(Icons.image),
-                                ),
-                                title: Text(
-                                  recipe.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(
-                                    Icons.favorite,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () async {
-                                    final userData =
-                                        context.read<UserDataProvider>();
-                                    await userData.toggleFavorite(recipe);
-                                  },
-                                ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (_) => RecipeDetailScreenWrapper(
-                                            recipeId: recipe.id,
-                                          ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                          } else {
-                            return Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Center(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (_) => SeeMoreScreen(
-                                              favoriteRecipes:
-                                                  favProvider.favoriteRecipes,
-                                            ),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text('Xem thêm'),
-                                ),
-                              ),
-                            );
-                          }
-                        },
+                    Text(
+                      recipe.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer_outlined,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${recipe.cookingTimeMinutes ?? '?'} phút',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.favorite, color: Colors.red),
+              onPressed: () {
+                provider.toggleFavorite(recipe);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

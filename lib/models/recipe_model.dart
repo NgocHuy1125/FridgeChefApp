@@ -1,22 +1,22 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+// lib/models/recipe_model.dart
+
 import '/models/comment_model.dart';
 import '/models/ingredient_model.dart';
 import '/models/tag_model.dart';
-import '/models/user_profile_model.dart';
 
+// Class Recipe đã được sửa lại factory FromJson
 class Recipe {
   final int id;
   final String name;
   final String? instructions;
   final String? imageUrl;
   final String? youtubeUrl;
+  final int? cookingTimeMinutes;
+  final String? difficulty;
 
   final List<Ingredient> ingredients;
   final List<Tag> tags;
   final List<Comment> comments;
-
-  final int? cookingTimeMinutes;
-  final String? difficulty;
 
   Recipe({
     required this.id,
@@ -30,15 +30,14 @@ class Recipe {
     this.cookingTimeMinutes,
     this.difficulty,
   });
-
   factory Recipe.fromJson(Map<String, dynamic> json) {
     var ingredientsList = <Ingredient>[];
     if (json['recipe_ingredients'] != null &&
         json['recipe_ingredients'] is List) {
       ingredientsList =
           (json['recipe_ingredients'] as List)
-              .where((i) => i['ingredients'] != null)
-              .map((i) => Ingredient.fromJson(i['ingredients']))
+              .where((item) => item['ingredients'] != null)
+              .map((item) => Ingredient.fromJson(item['ingredients']))
               .toList();
     }
 
@@ -67,9 +66,6 @@ class Recipe {
       imageUrl: apiRecipe.imageUrl,
       instructions: apiRecipe.instructions,
       youtubeUrl: apiRecipe.youtubeUrl,
-      ingredients: [],
-      tags: [],
-      comments: [],
     );
   }
 
@@ -82,6 +78,21 @@ class Recipe {
       'youtube_url': youtubeUrl,
       'ingredients': ingredients.map((e) => {'name': e.name}).toList(),
     };
+  }
+
+  Recipe copyWith({List<Ingredient>? ingredients}) {
+    return Recipe(
+      id: id,
+      name: name,
+      instructions: instructions,
+      imageUrl: imageUrl,
+      youtubeUrl: youtubeUrl,
+      cookingTimeMinutes: cookingTimeMinutes,
+      difficulty: difficulty,
+      ingredients: ingredients ?? this.ingredients,
+      tags: tags,
+      comments: comments,
+    );
   }
 }
 
