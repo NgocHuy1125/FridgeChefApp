@@ -1,10 +1,7 @@
-// lib/models/recipe_model.dart
-
 import '/models/comment_model.dart';
 import '/models/ingredient_model.dart';
 import '/models/tag_model.dart';
 
-// Class Recipe đã được sửa lại factory FromJson
 class Recipe {
   final int id;
   final String name;
@@ -30,6 +27,7 @@ class Recipe {
     this.cookingTimeMinutes,
     this.difficulty,
   });
+
   factory Recipe.fromJson(Map<String, dynamic> json) {
     var ingredientsList = <Ingredient>[];
     if (json['recipe_ingredients'] != null &&
@@ -42,7 +40,8 @@ class Recipe {
     }
 
     return Recipe(
-      id: json['id'],
+      id: int.tryParse(json['id'].toString()) ?? 0,
+
       name: json['name'] ?? 'Không có tên',
       instructions: json['instructions'],
       imageUrl: json['image_url'],

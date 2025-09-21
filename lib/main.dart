@@ -38,10 +38,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProxyProvider<AuthProvider, UserDataProvider>(
           create: (_) => UserDataProvider(),
           update: (context, auth, previousUserData) {
-            if (auth.user != null && previousUserData?.userProfile == null) {
-              return previousUserData!..loadAllUserData();
+            if (auth.user != null &&
+                previousUserData?.userProfile?.id != auth.user!.id) {
+              print("Auth user detected. Initializing UserDataProvider...");
+              return UserDataProvider()..loadAllUserData();
             }
-
             if (auth.user == null) {
               return UserDataProvider();
             }
@@ -53,8 +54,10 @@ class MyApp extends StatelessWidget {
           create: (_) => MyFridgeProvider(),
           update: (context, auth, previousFridgeData) {
             if (auth.user != null &&
-                previousFridgeData!.myFridgeItems.isEmpty) {
-              return previousFridgeData..initialize();
+                (previousFridgeData == null ||
+                    previousFridgeData.myFridgeItems.isEmpty)) {
+              print("Auth user detected. Initializing MyFridgeProvider...");
+              return MyFridgeProvider()..initialize();
             }
             if (auth.user == null) {
               return MyFridgeProvider();
@@ -83,7 +86,6 @@ class MyApp extends StatelessWidget {
           ),
         ),
         debugShowCheckedModeBanner: false,
-
         home: const AuthGate(),
       ),
     );
@@ -102,7 +104,6 @@ class AuthGate extends StatelessWidget {
           return const SplashScreen();
         }
         if (snapshot.hasData && snapshot.data?.session != null) {
-          // Cập nhật trạng thái trong AuthProvider một cách an toàn
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) {
               context.read<AuthProvider>().setUser(

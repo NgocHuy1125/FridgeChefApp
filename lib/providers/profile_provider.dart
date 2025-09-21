@@ -42,7 +42,6 @@ class ProfileProvider extends ChangeNotifier {
   List<Recipe> _cookedHistory = [];
   List<Recipe> get cookedHistory => _cookedHistory;
 
-  // **** THAY THẾ TOÀN BỘ HÀM NÀY ****
   Future<void> fetchProfileData() async {
     if (!_isLoading) {
       _isLoading = true;
@@ -53,7 +52,6 @@ class ProfileProvider extends ChangeNotifier {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) throw Exception("User is not logged in");
 
-      // Chạy các tác vụ song song cho những query phức tạp
       final futures = await Future.wait([
         supabase.from('profiles').select().eq('id', userId).single(),
         supabase
@@ -76,7 +74,6 @@ class ProfileProvider extends ChangeNotifier {
             .limit(5),
       ]);
 
-      // Gán kết quả từ các Future
       _userProfile = UserProfile.fromJson(futures[0] as Map<String, dynamic>);
 
       final viewedHistoryData = futures[1] as List;
@@ -92,7 +89,7 @@ class ProfileProvider extends ChangeNotifier {
               .map((item) => Recipe.fromJson(item['recipes']))
               .whereType<Recipe>()
               .toList();
-      _favoriteCount = _favoriteRecipes.length; // Lấy count từ độ dài list
+      _favoriteCount = _favoriteRecipes.length;
 
       final cookedHistoryData = futures[3] as List;
       _cookedHistory =
@@ -101,7 +98,6 @@ class ProfileProvider extends ChangeNotifier {
               .whereType<Recipe>()
               .toList();
 
-      // Lấy các giá trị count một cách tuần tự để đảm bảo không lỗi
       final cookedResponse = await supabase
           .from('cooking_history')
           .select('id')
@@ -129,7 +125,6 @@ class ProfileProvider extends ChangeNotifier {
 
   Future<void> signOut(BuildContext context) async {
     await supabase.auth.signOut();
-    // Xóa dữ liệu user nếu cần
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,

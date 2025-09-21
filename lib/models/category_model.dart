@@ -13,6 +13,14 @@ class Category {
     );
   }
 
+  factory Category.fromSupabaseJson(Map<String, dynamic> json) {
+    return Category(
+      id: json['id']?.toString() ?? '0',
+      name: json['name'] ?? 'Unknown',
+      thumbnail: json['thumbnail'],
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'idCategory': id,

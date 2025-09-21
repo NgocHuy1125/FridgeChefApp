@@ -83,8 +83,6 @@ class RecipeDetailProvider extends ChangeNotifier {
               'instructions': _recipe!.instructions,
               'image_url': _recipe!.imageUrl,
               'youtube_url': _recipe!.youtubeUrl,
-              // 'cooking_time_minutes': _recipe!.cookingTimeMinutes,
-              // 'difficulty': _recipe!.difficulty,
             }, onConflict: 'id');
           } else {
             throw Exception('Không tìm thấy món ăn với ID: $recipeId');
@@ -95,7 +93,7 @@ class RecipeDetailProvider extends ChangeNotifier {
       }
 
       if (_recipe != null) {
-        await userDataProvider.addViewToHistory(_recipe!.id);
+        await userDataProvider.addViewToHistory(_recipe!);
       }
 
       _status = DetailStatus.success;

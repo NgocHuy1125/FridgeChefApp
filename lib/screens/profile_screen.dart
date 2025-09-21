@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fridge_chef_app/screens/add_recipe_screen.dart';
 import 'package:fridge_chef_app/screens/recipe_detail_screen.dart';
 import '/models/recipe_model.dart';
 import '/providers/user_data_provider.dart';
@@ -31,8 +32,19 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AddRecipeScreen()));
+        },
+        label: const Text('Tạo công thức'),
+        icon: const Icon(Icons.add),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
       body:
-          provider.isLoading
+          provider.isLoading && provider.userProfile == null
               ? const Center(
                 child: CircularProgressIndicator(color: Colors.purple),
               )
@@ -40,15 +52,27 @@ class ProfileScreen extends StatelessWidget {
                 onRefresh:
                     () => context.read<UserDataProvider>().loadAllUserData(),
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 24,
-                    horizontal: 16,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 80),
                   children: [
                     _buildUserInfo(context, provider),
                     const SizedBox(height: 24),
                     _buildStatsSection(provider),
                     const SizedBox(height: 24),
+                    _buildSectionCard(
+                      title: 'Công thức của tôi',
+                      icon: Icons.auto_stories,
+                      iconColor: Colors.blue,
+                      child: _buildRecipeHorizontalList(provider.myRecipes),
+                      onTap:
+                          provider.myRecipes.isEmpty
+                              ? null
+                              : () => _showRecipeListDialog(
+                                context,
+                                'Công thức của tôi',
+                                provider.myRecipes,
+                              ),
+                    ),
+                    const SizedBox(height: 16),
                     _buildSectionCard(
                       title: 'Món ăn đã xem gần đây',
                       icon: Icons.history,
@@ -63,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
                                 provider.viewedHistory,
                               ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     _buildSectionCard(
                       title: 'Món ăn yêu thích',
                       icon: Icons.favorite,
@@ -80,7 +104,7 @@ class ProfileScreen extends StatelessWidget {
                                 provider.favoriteRecipes,
                               ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     _buildSectionCard(
                       title: 'Lịch sử nấu ăn',
                       icon: Icons.soup_kitchen_outlined,
@@ -179,15 +203,17 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  // *** WIDGET ĐÃ ĐƯỢC CẬP NHẬT ***
   Widget _buildStatsSection(UserDataProvider provider) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            _buildStatItem(provider.myRecipes.length.toString(), 'Đã tạo'),
             _buildStatItem(provider.viewedCount.toString(), 'Đã xem'),
             _buildStatItem(provider.cookedCount.toString(), 'Đã nấu'),
             _buildStatItem(provider.favoriteCount.toString(), 'Yêu thích'),

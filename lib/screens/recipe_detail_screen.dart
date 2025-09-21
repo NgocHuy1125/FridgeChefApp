@@ -305,7 +305,9 @@ class RecipeDetailScreen extends StatelessWidget {
             ),
           ),
           onPressed: () {
-            context.read<UserDataProvider>().addCookingToHistory(recipe.id);
+            // *** SỬA LỖI DUY NHẤT Ở ĐÂY ***
+            // Truyền vào cả đối tượng `recipe` thay vì chỉ `recipe.id`
+            context.read<UserDataProvider>().addCookingToHistory(recipe);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Đã lưu vào lịch sử nấu ăn!'),
