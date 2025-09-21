@@ -201,43 +201,10 @@ class UserDataProvider extends ChangeNotifier {
     return suggestions.take(8).toList();
   }
 
-  Future<int> _ensureRecipeExistsInDb(Recipe recipe) async {
-    try {
-      final existing =
-          await supabase
-              .from('recipes')
-              .select('id')
-              .eq('external_id', recipe.id.toString())
-              .maybeSingle();
-
-      if (existing != null) {
-        return existing['id'];
-      } else {
-        final newRecipeData =
-            await supabase
-                .from('recipes')
-                .insert({
-                  'name': recipe.name,
-                  'image_url': recipe.imageUrl,
-                  'instructions': recipe.instructions,
-                  'youtube_url': recipe.youtubeUrl,
-                  'external_id': recipe.id.toString(),
-                  'user_id': null,
-                })
-                .select('id')
-                .single();
-
-        return newRecipeData['id'];
-      }
-    } catch (e) {
-      print("Error in _ensureRecipeExistsInDb: $e");
-      throw Exception("Could not ensure recipe exists in DB");
-    }
-  }
-
   Future<void> createRecipe({
     required String name,
     required String instructions,
+    required String youtubeUrl,
     required List<String> ingredientNames,
     required XFile imageFile,
     required String categoryId,
@@ -268,11 +235,13 @@ class UserDataProvider extends ChangeNotifier {
                 'instructions': instructions,
                 'image_url': imageUrl,
                 'user_id': userId,
+                'youtube_url': youtubeUrl.isNotEmpty ? youtubeUrl : null,
               })
               .select('id')
               .single();
 
       final newRecipeId = newRecipeData['id'] as int;
+
       await supabase.from('recipe_category').insert({
         'recipe_id': newRecipeId,
         'category_id': int.parse(categoryId),
@@ -309,10 +278,41 @@ class UserDataProvider extends ChangeNotifier {
     }
   }
 
+  Future<int> _ensureRecipeExistsInDb(Recipe recipe) async {
+    try {
+      final existing =
+          await supabase
+              .from('recipes')
+              .select('id')
+              .eq('external_id', recipe.id.toString())
+              .maybeSingle();
+      if (existing != null) {
+        return existing['id'];
+      } else {
+        final newRecipeData =
+            await supabase
+                .from('recipes')
+                .insert({
+                  'name': recipe.name,
+                  'image_url': recipe.imageUrl,
+                  'instructions': recipe.instructions,
+                  'youtube_url': recipe.youtubeUrl,
+                  'external_id': recipe.id.toString(),
+                  'user_id': null,
+                })
+                .select('id')
+                .single();
+        return newRecipeData['id'];
+      }
+    } catch (e) {
+      print("Error in _ensureRecipeExistsInDb: $e");
+      throw Exception("Could not ensure recipe exists in DB");
+    }
+  }
+
   Future<void> toggleFavorite(Recipe recipe) async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
-
     try {
       final internalRecipeId = await _ensureRecipeExistsInDb(recipe);
       final currentlyFavorite = isFavorite(internalRecipeId);
@@ -350,27 +350,12 @@ class UserDataProvider extends ChangeNotifier {
     if (userId == null) return;
     try {
       final internalRecipeId = await _ensureRecipeExistsInDb(recipe);
-
       final now = DateTime.now().toIso8601String();
-      final existingRecord =
-          await supabase.from('view_history').select('user_id').match({
-            'user_id': userId,
-            'recipe_id': internalRecipeId,
-          }).maybeSingle();
-
-      if (existingRecord != null) {
-        await supabase
-            .from('view_history')
-            .update({'last_viewed_at': now})
-            .match({'user_id': userId, 'recipe_id': internalRecipeId});
-      } else {
-        await supabase.from('view_history').insert({
-          'user_id': userId,
-          'recipe_id': internalRecipeId,
-          'last_viewed_at': now,
-        });
-      }
-
+      await supabase.from('view_history').upsert({
+        'user_id': userId,
+        'recipe_id': internalRecipeId,
+        'last_viewed_at': now,
+      }, onConflict: 'user_id, recipe_id');
       await loadAllUserData();
     } catch (e) {
       print('Error adding view to history: $e');
@@ -409,7 +394,8 @@ class UserDataProvider extends ChangeNotifier {
     _cookedCount = 0;
     _favoriteCount = 0;
     _categories.clear();
-
+    _dbIngredients.clear();
+    _apiIngredientNames.clear();
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,

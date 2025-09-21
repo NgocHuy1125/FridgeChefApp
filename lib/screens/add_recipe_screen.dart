@@ -17,6 +17,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _instructionsController = TextEditingController();
+  final _youtubeUrlController = TextEditingController();
   final List<TextEditingController> _ingredientControllers = [
     TextEditingController(),
   ];
@@ -29,6 +30,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   void dispose() {
     _nameController.dispose();
     _instructionsController.dispose();
+    _youtubeUrlController.dispose();
     for (var controller in _ingredientControllers) {
       controller.dispose();
     }
@@ -64,29 +66,28 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   }
 
   Future<void> _submitRecipe() async {
-    // Nếu đang trong quá trình xử lý, không làm gì cả để tránh nhấn đúp
     if (_isLoading) return;
 
     if (_formKey.currentState!.validate()) {
       if (_imageFile == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Vui lòng chọn hình ảnh')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng chọn hình ảnh cho món ăn')),
+        );
         return;
       }
       if (_selectedCategoryId == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Vui lòng chọn danh mục')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng chọn danh mục cho món ăn')),
+        );
         return;
       }
 
       setState(() => _isLoading = true);
-
       try {
         await context.read<UserDataProvider>().createRecipe(
           name: _nameController.text.trim(),
           instructions: _instructionsController.text.trim(),
+          youtubeUrl: _youtubeUrlController.text.trim(),
           ingredientNames:
               _ingredientControllers.map((c) => c.text.trim()).toList(),
           imageFile: _imageFile!,
@@ -103,10 +104,9 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+          ).showSnackBar(SnackBar(content: Text('Lỗi khi tạo công thức: $e')));
         }
       } finally {
-        // Chỉ set lại isLoading false nếu widget vẫn còn tồn tại
         if (mounted) {
           setState(() => _isLoading = false);
         }
@@ -120,7 +120,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Thêm công thức mới')),
-      // Đổi body thành một widget duy nhất để dễ quản lý trạng thái loading
       body: Stack(
         children: [
           Form(
@@ -131,6 +130,14 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 _buildImagePicker(),
                 const SizedBox(height: 24),
                 _buildTextFormField(_nameController, 'Tên món ăn'),
+                const SizedBox(height: 16),
+
+                _buildTextFormField(
+                  _youtubeUrlController,
+                  'Link video YouTube (tùy chọn)',
+                  isOptional: true,
+                  icon: Icons.video_library_outlined,
+                ),
                 const SizedBox(height: 16),
 
                 DropdownButtonFormField<String>(
@@ -185,7 +192,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  // Vô hiệu hóa nút bấm khi đang loading
                   onPressed: _isLoading ? null : _submitRecipe,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
@@ -200,11 +206,12 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               ],
             ),
           ),
-          // Lớp phủ loading
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(child: CircularProgressIndicator()),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
         ],
       ),
@@ -257,19 +264,23 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     TextEditingController controller,
     String label, {
     int maxLines = 1,
+    bool isOptional = false,
+    IconData? icon,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
+        prefixIcon: icon != null ? Icon(icon) : null,
       ),
       maxLines: maxLines,
-      validator:
-          (value) =>
-              (value == null || value.trim().isEmpty)
-                  ? 'Vui lòng không để trống'
-                  : null,
+      validator: (value) {
+        if (!isOptional && (value == null || value.trim().isEmpty)) {
+          return 'Vui lòng không để trống';
+        }
+        return null;
+      },
     );
   }
 
@@ -299,9 +310,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 focusNode,
                 onFieldSubmitted,
               ) {
-                if (_ingredientControllers.length > index) {
-                  _ingredientControllers[index] = textEditingController;
-                }
+                _ingredientControllers[index] = textEditingController;
 
                 return TextFormField(
                   controller: textEditingController,
