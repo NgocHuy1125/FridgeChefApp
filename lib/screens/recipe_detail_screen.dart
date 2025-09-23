@@ -20,7 +20,7 @@ class RecipeDetailScreenWrapper extends StatelessWidget {
           (_) =>
               RecipeDetailProvider()
                 ..fetchRecipeDetails(recipeId, userDataProvider),
-      child: const RecipeDetailScreen(),
+      child: RecipeDetailScreen(),
     );
   }
 }
@@ -51,7 +51,11 @@ class RecipeDetailScreen extends StatelessWidget {
         final recipe = provider.recipe!;
         return CustomScrollView(
           slivers: [
-            _buildSliverAppBar(context, recipe),
+            Consumer<UserDataProvider>(
+              builder: (context, userDataProvider, child) {
+                return _buildSliverAppBar(context, recipe, userDataProvider);
+              },
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -74,8 +78,11 @@ class RecipeDetailScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildSliverAppBar(BuildContext context, Recipe recipe) {
-    final userDataProvider = context.watch<UserDataProvider>();
+  Widget _buildSliverAppBar(
+    BuildContext context,
+    Recipe recipe,
+    UserDataProvider userDataProvider,
+  ) {
     final isFavorite = userDataProvider.isFavorite(recipe.id);
 
     return SliverAppBar(
@@ -305,8 +312,6 @@ class RecipeDetailScreen extends StatelessWidget {
             ),
           ),
           onPressed: () {
-            // *** SỬA LỖI DUY NHẤT Ở ĐÂY ***
-            // Truyền vào cả đối tượng `recipe` thay vì chỉ `recipe.id`
             context.read<UserDataProvider>().addCookingToHistory(recipe);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(

@@ -5,6 +5,7 @@ import '../providers/my_fridge_provider.dart';
 import '../widgets/suggestion_recipe_card.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/cupertino.dart';
+import '../providers/user_data_provider.dart';
 
 class MyFridgeScreenWrapper extends StatelessWidget {
   const MyFridgeScreenWrapper({super.key});
@@ -117,7 +118,24 @@ class _MyFridgeScreenState extends State<MyFridgeScreen> {
                           child:
                               provider.currentView == FridgeView.fridge
                                   ? _buildFridgeContent(context, provider)
-                                  : _buildSuggestionContent(context, provider),
+                                  : Consumer2<
+                                    MyFridgeProvider,
+                                    UserDataProvider
+                                  >(
+                                    builder: (
+                                      context,
+                                      fridgeProvider,
+                                      userDataProvider,
+                                      child,
+                                    ) {
+                                      // Truyền cả hai provider vào hàm build
+                                      return _buildSuggestionContent(
+                                        context,
+                                        fridgeProvider,
+                                        userDataProvider,
+                                      );
+                                    },
+                                  ),
                         ),
               ),
             ],
@@ -478,6 +496,7 @@ class _MyFridgeScreenState extends State<MyFridgeScreen> {
   Widget _buildSuggestionContent(
     BuildContext context,
     MyFridgeProvider provider,
+    UserDataProvider userDataProvider,
   ) {
     if (provider.isSuggesting) {
       return const Center(

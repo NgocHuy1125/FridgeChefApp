@@ -41,7 +41,6 @@ class Recipe {
 
     return Recipe(
       id: int.tryParse(json['id'].toString()) ?? 0,
-
       name: json['name'] ?? 'Không có tên',
       instructions: json['instructions'],
       imageUrl: json['image_url'],
@@ -79,18 +78,29 @@ class Recipe {
     };
   }
 
-  Recipe copyWith({List<Ingredient>? ingredients}) {
+  Recipe copyWith({
+    int? id,
+    String? name,
+    String? instructions,
+    String? imageUrl,
+    String? youtubeUrl,
+    int? cookingTimeMinutes,
+    String? difficulty,
+    List<Ingredient>? ingredients,
+    List<Tag>? tags,
+    List<Comment>? comments,
+  }) {
     return Recipe(
-      id: id,
-      name: name,
-      instructions: instructions,
-      imageUrl: imageUrl,
-      youtubeUrl: youtubeUrl,
-      cookingTimeMinutes: cookingTimeMinutes,
-      difficulty: difficulty,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      instructions: instructions ?? this.instructions,
+      imageUrl: imageUrl ?? this.imageUrl,
+      youtubeUrl: youtubeUrl ?? this.youtubeUrl,
+      cookingTimeMinutes: cookingTimeMinutes ?? this.cookingTimeMinutes,
+      difficulty: difficulty ?? this.difficulty,
       ingredients: ingredients ?? this.ingredients,
-      tags: tags,
-      comments: comments,
+      tags: tags ?? this.tags,
+      comments: comments ?? this.comments,
     );
   }
 }
